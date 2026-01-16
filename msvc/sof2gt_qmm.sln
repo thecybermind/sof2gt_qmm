@@ -5,8 +5,6 @@ VisualStudioVersion = 18.2.11408.102 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sof2gt_qmm", "sof2gt_qmm.vcxproj", "{1D5BE629-82D1-4511-8559-5116BFE4338C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gthook_qmm", "..\gt_hook\msvc\gthook_qmm.vcxproj", "{CF2CD5DB-8063-418F-8233-7081C2412F21}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug-SOF2MP|x86 = Debug-SOF2MP|x86
@@ -17,10 +15,6 @@ Global
 		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Debug-SOF2MP|x86.Build.0 = Debug-SOF2MP|Win32
 		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Release-SOF2MP|x86.ActiveCfg = Release-SOF2MP|Win32
 		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Release-SOF2MP|x86.Build.0 = Release-SOF2MP|Win32
-		{CF2CD5DB-8063-418F-8233-7081C2412F21}.Debug-SOF2MP|x86.ActiveCfg = Debug-SOF2MP|Win32
-		{CF2CD5DB-8063-418F-8233-7081C2412F21}.Debug-SOF2MP|x86.Build.0 = Debug-SOF2MP|Win32
-		{CF2CD5DB-8063-418F-8233-7081C2412F21}.Release-SOF2MP|x86.ActiveCfg = Release-SOF2MP|Win32
-		{CF2CD5DB-8063-418F-8233-7081C2412F21}.Release-SOF2MP|x86.Build.0 = Release-SOF2MP|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

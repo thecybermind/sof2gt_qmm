@@ -151,9 +151,6 @@ C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t
 		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Gametype '%s' initialized!", gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
 	}
 
-	if (cmd != GAMETYPE_RUN_FRAME)
-		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "vmMain(%d) called", cmd), QMMLOG_INFO);
-
 	intptr_t args[] = { cmd, arg0, arg1, arg2, arg3, arg4, arg5, arg6 };
 
 	// return value from mod call

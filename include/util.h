@@ -19,22 +19,22 @@ char* strncpyz(char* dest, const char* src, size_t count);
 
 #ifdef _WIN32
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <direct.h>
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+    #include <direct.h>
 
-#define PATH_MAX			4096
-#define dlopen(file, x)		((void*)LoadLibrary(file))
-#define dlsym(dll, func)	((void*)GetProcAddress((HMODULE)(dll), (func)))
-#define dlclose(dll)		FreeLibrary((HMODULE)(dll))
+    #define PATH_MAX			4096
+    #define dlopen(file, x)		((void*)LoadLibrary(file))
+    #define dlsym(dll, func)	((void*)GetProcAddress((HMODULE)(dll), (func)))
+    #define dlclose(dll)		FreeLibrary((HMODULE)(dll))
 
 #elif defined(__linux__)
 
-#include <dlfcn.h>
-#include <unistd.h> 
-#include <limits.h>
-#include <ctype.h>
-#include <sys/stat.h>
+    #include <dlfcn.h>
+    #include <unistd.h> 
+    #include <limits.h>
+    #include <ctype.h>
+    #include <sys/stat.h>
 
 #endif // __linux__
 

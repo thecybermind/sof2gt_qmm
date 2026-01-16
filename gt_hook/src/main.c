@@ -1,5 +1,5 @@
 /*
-SoF2GT_QMM - Hook gametype dlls/qvms for Soldier of Fortune 2
+GTHOOK_QMM - Stub that gets loaded as the gametype DLL and calls SoF2GT_QMM
 Copyright 2025-2026
 https://github.com/thecybermind/sof2gt_qmm/
 3-clause BSD license: https://opensource.org/license/bsd-3-clause

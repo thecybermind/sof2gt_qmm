@@ -5,26 +5,16 @@
       <Configuration>Debug-SOF2MP</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug-SOF2MP|x64">
-      <Configuration>Debug-SOF2MP</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release-SOF2MP|Win32">
       <Configuration>Release-SOF2MP</Configuration>
       <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release-SOF2MP|x64">
-      <Configuration>Release-SOF2MP</Configuration>
-      <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\main.c" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="resource.rc">
-      <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
-    </ResourceCompile>
+    <ResourceCompile Include="resource.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

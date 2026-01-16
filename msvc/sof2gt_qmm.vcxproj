@@ -5,21 +5,14 @@
       <Configuration>Debug-SOF2MP</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug-SOF2MP|x64">
-      <Configuration>Debug-SOF2MP</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release-SOF2MP|Win32">
       <Configuration>Release-SOF2MP</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Release-SOF2MP|x64">
-      <Configuration>Release-SOF2MP</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\game.h" />
+    <ClInclude Include="..\include\hook.h" />
     <ClInclude Include="..\include\main.h" />
     <ClInclude Include="..\include\qvm.h" />
     <ClInclude Include="..\include\sof2gt_plugin.h" />
@@ -27,14 +20,13 @@
     <ClInclude Include="..\include\version.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\hook_win32.cpp" />
     <ClCompile Include="..\src\main.cpp" />
     <ClCompile Include="..\src\qvm.c" />
     <ClCompile Include="..\src\util.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="resource.rc">
-      <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">_UNICODE;UNICODE;%(PreprocessorDefinitions);_WIN64</PreprocessorDefinitions>
-    </ResourceCompile>
+    <ResourceCompile Include="resource.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

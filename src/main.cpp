@@ -21,6 +21,7 @@ Created By:
 #include "util.h"
 #include "sof2gt_plugin.h"
 #include "main.h"
+#include "hook.h"
 #include "qvm.h"
 
 pluginres_t* g_result = nullptr;
@@ -51,13 +52,6 @@ sof2gt_plugininfo_t gt_pluginvars = {
 	nullptr,	// gt_syscall
 	nullptr,	// gt_vmMain
 };
-
-// store the game's entity and client info
-gentity_t* g_gents = nullptr;
-intptr_t g_numgents = 0;
-intptr_t g_gentsize = 0;
-gclient_t* g_clients = nullptr;
-intptr_t g_clientsize = 0;
 
 // track if we shutdown
 bool g_shutdown = 0;
@@ -92,7 +86,7 @@ C_DLLEXPORT void QMM_Detach() {
 
 C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
 	if (cmd == GAME_INIT) {
-		QMM_WRITEQMMLOG(PLID, "SoF2GT loaded!\n", QMMLOG_INFO);
+		QMM_WRITEQMMLOG(PLID, "SoF2GT loaded!\n", QMMLOG_NOTICE);
 
 		// pass result variable and return variable to plugins
 		QMM_PLUGIN_BROADCAST(PLID, "SOF2GT_Attach", &gt_pluginvars, sizeof(gt_pluginvars));
@@ -100,6 +94,7 @@ C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
 	else if (cmd == GAME_SHUTDOWN) {
 		if (gt_dll)
 			dlclose(gt_dll);
+		qvm_unload(&gt_qvm);
 	}
 
 	QMM_RET_IGNORED(0);
@@ -107,20 +102,19 @@ C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
 
 
 C_DLLEXPORT intptr_t QMM_syscall(intptr_t cmd, intptr_t* args) {
-	if (cmd == G_LOCATE_GAME_DATA) {
-		g_gents = (gentity_t*)(args[0]);
-		g_numgents = args[1];
-		g_gentsize = args[2];
-		g_clients = (gclient_t*)(args[3]);
-		g_clientsize = args[4];
-	}
-
-	// save the gametype so we know what gametype file to load
+	// this is what the mod calls to initialize a gametype qvm/dll
+	
 	if (cmd == G_GT_INIT) {
+		// save the gametype string so we know what gametype file to load
 		const char* gametype = (const char*)args[0];
 		strncpyz(gt_pluginvars.gt_gametype, gametype, sizeof(gt_pluginvars.gt_gametype));
-
-		QMM_RET_IGNORED(0);
+		
+		// install dlopen/LoadLibraryA hook in server binary to point gametype dll load to us
+		if (!hook_enable(gametype)) {
+			g_shutdown = true;
+			g_syscall(G_ERROR, "(SOF2GT) Could not hook LoadLibraryA/dlopen!\n");
+			QMM_RET_SUPERCEDE(0);
+		}
 	}
 
 	QMM_RET_IGNORED(0);
@@ -128,13 +122,21 @@ C_DLLEXPORT intptr_t QMM_syscall(intptr_t cmd, intptr_t* args) {
 
 
 C_DLLEXPORT intptr_t QMM_vmMain_Post(intptr_t cmd, intptr_t* args) {
-
 	QMM_RET_IGNORED(0);
 }
 
 
 C_DLLEXPORT intptr_t QMM_syscall_Post(intptr_t cmd, intptr_t* args) {
-
+	if (cmd == G_GT_INIT) {
+		// unload hook
+		if (!hook_disable()) {
+			if (!g_shutdown) {
+				g_shutdown = true;
+				g_syscall(G_ERROR, "(SOF2GT) Could not remove LoadLibraryA/dlopen hook!\n");
+			}
+			QMM_RET_SUPERCEDE(0);
+		}
+	}
 	QMM_RET_IGNORED(0);
 }
 
@@ -143,59 +145,14 @@ C_DLLEXPORT void QMM_PluginMessage(plid_t from_plid, const char* message, void* 
 }
 
 
-// handle syscall from gametype mod (DLL or QVM)
-intptr_t SOF2GT_syscall(intptr_t cmd, ...) {
-	// pull args from ..., put cmd in front
-	intptr_t args[SOF2GT_SYSCALL_ARGS+1] = { cmd };
-	va_list arglist;
-	va_start(arglist, cmd);
-	for (int i = 0; i < SOF2GT_SYSCALL_ARGS; ++i)
-		args[i+1] = va_arg(arglist, intptr_t);
-	va_end(arglist);
-
-	// return value from mod call
-	intptr_t mod_ret = 0;
-	// return value to pass back to the engine (either mod_ret, or a plugin_ret from QMM_OVERRIDE/QMM_SUPERCEDE result)
-	intptr_t final_ret = 0;
-
-	// route to plugins
-	gt_pluginvars.gt_return = 0;
-	gt_pluginvars.gt_result = QMM_UNUSED;
-	QMM_PLUGIN_BROADCAST(PLID, "SOF2GT_syscall", args, COUNTOF(args));
-
-	// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
-	if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
-		final_ret = gt_pluginvars.gt_return;
-
-	// call real syscall function (unless a plugin resulted in QMM_SUPERCEDE)
-	if (gt_pluginvars.gt_result < QMM_SUPERCEDE)
-		mod_ret = gt_pluginvars.gt_syscall(cmd, args[1], args[2], args[3], args[4], args[5], args[6]);
-
-	// if no plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, return the actual mod's return value back to the engine
-	if (gt_pluginvars.gt_result < QMM_OVERRIDE)
-		final_ret = mod_ret;
-
-	// route to plugins Post
-	gt_pluginvars.gt_return = 0;
-	gt_pluginvars.gt_result = QMM_UNUSED;
-	QMM_PLUGIN_BROADCAST(PLID, "SOF2GT_syscall_Post", args, COUNTOF(args));
-
-	// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
-	if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
-		final_ret = gt_pluginvars.gt_return;
-
-	return final_ret;
-}
-
-
 // entry point: handle gametype vmMain calls from engine
 C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6) {
-	if (g_shutdown)
-		return 0;
-
 	if (cmd == GAMETYPE_INIT) {
 		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Gametype '%s' initialized!", gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
 	}
+
+	if (cmd != GAMETYPE_RUN_FRAME)
+		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "vmMain(%d) called", cmd), QMMLOG_INFO);
 
 	intptr_t args[] = { cmd, arg0, arg1, arg2, arg3, arg4, arg5, arg6 };
 
@@ -225,6 +182,54 @@ C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t
 	gt_pluginvars.gt_return = 0;
 	gt_pluginvars.gt_result = QMM_UNUSED;
 	QMM_PLUGIN_BROADCAST(PLID, "SOF2GT_vmMain_Post", args, COUNTOF(args));
+
+	// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
+	if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
+		final_ret = gt_pluginvars.gt_return;
+
+	if (cmd != GAMETYPE_RUN_FRAME)
+		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "vmMain(%d) returning %d", cmd, final_ret), QMMLOG_INFO);
+
+	return final_ret;
+}
+
+
+// handle syscall from gametype mod (DLL or QVM)
+intptr_t SOF2GT_syscall(intptr_t cmd, ...) {
+	// pull args from ..., put cmd in front
+	intptr_t args[SOF2GT_SYSCALL_ARGS + 1] = { cmd };
+	va_list arglist;
+	va_start(arglist, cmd);
+	for (int i = 0; i < SOF2GT_SYSCALL_ARGS; ++i)
+		args[i + 1] = va_arg(arglist, intptr_t);
+	va_end(arglist);
+
+	// return value from mod call
+	intptr_t mod_ret = 0;
+	// return value to pass back to the engine (either mod_ret, or a plugin_ret from QMM_OVERRIDE/QMM_SUPERCEDE result)
+	intptr_t final_ret = 0;
+
+	// route to plugins
+	gt_pluginvars.gt_return = 0;
+	gt_pluginvars.gt_result = QMM_UNUSED;
+	QMM_PLUGIN_BROADCAST(PLID, "SOF2GT_syscall", args, COUNTOF(args));
+
+	// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
+	if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
+		final_ret = gt_pluginvars.gt_return;
+
+	// call real syscall function (unless a plugin resulted in QMM_SUPERCEDE)
+	if (gt_pluginvars.gt_result < QMM_SUPERCEDE)
+		mod_ret = gt_pluginvars.gt_syscall(cmd, args[1], args[2], args[3], args[4], args[5], args[6]);
+
+	// if no plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, return the actual mod's return value back to the engine
+	if (gt_pluginvars.gt_result < QMM_OVERRIDE)
+		final_ret = mod_ret;
+
+	// route to plugins Post
+	gt_pluginvars.gt_return = 0;
+	gt_pluginvars.gt_result = QMM_UNUSED;
+	QMM_PLUGIN_BROADCAST(PLID, "SOF2GT_syscall_Post", args, COUNTOF(args));
 
 	// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
 	if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
@@ -266,7 +271,7 @@ intptr_t SOFT2GT_qvm_vmmain(intptr_t cmd, ...) {
 }
 
 
-// handle syscalls from QVM gametype mod (redirects to SOF2GT_syscall)
+// handle syscalls from QVM gametype mod (continues to SOF2GT_syscall)
 int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args) {
 	intptr_t ret = 0;
 
@@ -358,21 +363,23 @@ int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args) {
 
 // entry point: handle gametype load from engine
 C_DLLEXPORT void dllEntry(eng_syscall_t syscall) {
+	// store gt syscall from engine
 	gt_pluginvars.gt_syscall = syscall;
 
 	QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Gametype hook DLL loaded for gametype '%s'\n", gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
 
+	// load gametype mod file
 	const char* modpath = QMM_VARARGS(PLID, "base/mp/qmm_gt_%sx86.dll", gt_pluginvars.gt_gametype);
-
 	if (!s_load_dll(modpath)) {
 		modpath = QMM_VARARGS(PLID, "vm/gt_%s.qvm", gt_pluginvars.gt_gametype);
 		if (!s_load_qvm(modpath)) {
 			g_shutdown = true;
-			g_syscall(G_ERROR, QMM_VARARGS(PLID, "Could not locate DLL or QVM for gametype '%s'\n", gt_pluginvars.gt_gametype));
+			g_syscall(G_ERROR, QMM_VARARGS(PLID, "Could not load DLL or QVM for gametype '%s'\n", gt_pluginvars.gt_gametype));
 			return;
 		}
 	}
 	QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Successfully loaded %s for gametype '%s'\n", (gt_dll ? "DLL" : "QVM"), gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
+
 }
 
 
@@ -429,7 +436,7 @@ static bool s_load_qvm(const char* file) {
 	g_syscall(G_FS_FCLOSE_FILE, fpk3);
 
 	// attempt to load mod
-	loaded = qvm_load(&gt_qvm, filemem.data(), filemem.size(), SOF2GT_qvm_syscall, true, nullptr);
+	loaded = qvm_load(&gt_qvm, filemem.data(), filemem.size(), SOF2GT_qvm_syscall, true, nullptr);	// true = verify_data
 	if (!loaded) {
 		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "s_load_qvm(\"%s\"): QVM load failed for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
 		return false;

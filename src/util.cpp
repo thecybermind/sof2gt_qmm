@@ -26,6 +26,7 @@ char* strncpyz(char* dest, const char* src, size_t count) {
 }
 
 
+// allow qvm.c to log without needing to include QMM/game headers
 extern "C" void log_c(int severity, const char* tag, const char* fmt, ...) {
     (void)tag;
 

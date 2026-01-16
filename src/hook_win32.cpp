@@ -18,7 +18,7 @@ Created By:
 
 #include "main.h"
 
-typedef HMODULE(*pfnLLA_t)(LPCSTR);
+typedef HMODULE(WINAPI *pfnLLA_t)(LPCSTR);
 
 static void* install_hook(HMODULE target, const char* dllname, const char* functionname, void* functionhook);
 static HMODULE s_dll = nullptr;
@@ -33,7 +33,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD, LPVOID) {
 // this is our LoadLibrary hook. if the requested filename has "gt_", the gametype string from G_GT_INIT,
 // and does NOT have "qmm", then point to this DLL. otherwise use normal LoadLibrary
 pfnLLA_t pfnLoadLibraryA = nullptr;
-HMODULE LoadLibraryA_Hook(LPCSTR lpLibFileName) {
+HMODULE WINAPI LoadLibraryA_Hook(LPCSTR lpLibFileName) {
     if (strstr(lpLibFileName, "gt_") &&
         strstr(lpLibFileName, s_gametype) &&
         !strstr(lpLibFileName, "qmm"))
@@ -45,7 +45,7 @@ HMODULE LoadLibraryA_Hook(LPCSTR lpLibFileName) {
 bool hook_enable(const char* gametype) {
     s_gametype = gametype;
     pfnLoadLibraryA = (pfnLLA_t)install_hook(GetModuleHandle(NULL), "kernel32.dll", "LoadLibraryA", LoadLibraryA_Hook);
-    return pfnLoadLibraryA;
+    return !!pfnLoadLibraryA;
 }
 
 

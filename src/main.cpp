@@ -378,8 +378,8 @@ C_DLLEXPORT void dllEntry(eng_syscall_t syscall) {
 			return;
 		}
 	}
-	QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Successfully loaded %s for gametype '%s'\n", (gt_dll ? "DLL" : "QVM"), gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
 
+	QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Successfully loaded %s for gametype '%s'\n", (gt_dll ? "DLL" : "QVM"), gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
 }
 
 

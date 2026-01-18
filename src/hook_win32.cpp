@@ -18,13 +18,14 @@ Created By:
 
 #include "main.h"
 
-#pragma comment( lib, "Dbghelp.lib") // ImageDirectoryEntryToData
+#pragma comment( lib, "dbghelp.lib") // ImageDirectoryEntryToData
 
 typedef HMODULE(WINAPI *pfnLLA_t)(LPCSTR);
 
-static void* install_hook(HMODULE target, const char* dllname, const char* functionname, void* functionhook);
 static HMODULE s_dll = nullptr;
 static const char* s_gametype;
+static pfnLLA_t old_LoadLibraryA = nullptr;
+
 
 // just store our module pointer
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD, LPVOID) {
@@ -37,34 +38,21 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD, LPVOID) {
 // and does NOT have "qmm", then we need to return a pointer to this DLL (s_dll). However, without increasing the
 // reference count of this DLL, the first FreeLibrary called on it to unload the gametype DLL will also unload the
 // plugin entirely, causing a crash in QMM. So to increase the reference count, we use GetModuleHandleExA.
-pfnLLA_t pfnLoadLibraryA = nullptr;
-HMODULE WINAPI LoadLibraryA_Hook(LPCSTR lpLibFileName) {
+static HMODULE WINAPI LoadLibraryA_Hook(LPCSTR lpLibFileName) {
     if (strstr(lpLibFileName, "gt_") &&
         strstr(lpLibFileName, s_gametype) &&
         !strstr(lpLibFileName, "qmm")) {
         GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)s_dll, &s_dll);
         return s_dll;
     }
-    return pfnLoadLibraryA(lpLibFileName);
-}
-
-
-bool hook_enable(const char* gametype) {
-    s_gametype = gametype;
-    pfnLoadLibraryA = (pfnLLA_t)install_hook(GetModuleHandle(NULL), "kernel32.dll", "LoadLibraryA", LoadLibraryA_Hook);
-    return !!pfnLoadLibraryA;
-}
-
-
-bool hook_disable() {
-    return install_hook(GetModuleHandle(NULL), "kernel32.dll", "LoadLibraryA", pfnLoadLibraryA);
+    return old_LoadLibraryA(lpLibFileName);
 }
 
 
 static void* install_hook(HMODULE target_module, const char* dll_name, const char* function_name, void* function_hook) {
     PIMAGE_IMPORT_DESCRIPTOR importDescriptorTable, importDescriptor;
     char* module_base = (char*)target_module;   // module base as a char* for adding RVAs
-    void* ret = nullptr;                        // store old function address
+    void* ret = nullptr;                        // store and return old function address
     MEMORY_BASIC_INFORMATION thunkMemInfo;
     DWORD oldProtect, _;
 
@@ -96,7 +84,7 @@ static void* install_hook(HMODULE target_module, const char* dll_name, const cha
                     return nullptr;
 
                 // allow writing to the thunk page
-                if (!VirtualProtect(thunkMemInfo.BaseAddress, thunkMemInfo.RegionSize, PAGE_EXECUTE_READWRITE, &oldProtect))
+                if (!VirtualProtect(thunkMemInfo.BaseAddress, thunkMemInfo.RegionSize, PAGE_READWRITE, &oldProtect))
                     return nullptr;
 
                 // replace function with the hook
@@ -112,6 +100,19 @@ static void* install_hook(HMODULE target_module, const char* dll_name, const cha
     } // importDescriptor loop
 
     return nullptr;
+}
+
+
+bool hook_enable(const char* gametype) {
+    s_gametype = gametype;
+
+    old_LoadLibraryA = (pfnLLA_t)install_hook(GetModuleHandle(NULL), "kernel32.dll", "LoadLibraryA", LoadLibraryA_Hook);
+    return !!old_LoadLibraryA;
+}
+
+
+bool hook_disable() {
+    return !!install_hook(GetModuleHandle(NULL), "kernel32.dll", "LoadLibraryA", old_LoadLibraryA);
 }
 
 #endif // _WIN32

@@ -20,6 +20,7 @@
     <ClInclude Include="..\include\version.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\hook_linux.cpp" />
     <ClCompile Include="..\src\hook_win32.cpp" />
     <ClCompile Include="..\src\main.cpp" />
     <ClCompile Include="..\src\qvm.c" />

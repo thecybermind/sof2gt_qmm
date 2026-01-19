@@ -11,7 +11,7 @@ Created By:
 
 #ifdef __linux__
 
-#define _GNU_SOURCE
+//#define _GNU_SOURCE
 #include <link.h>
 #include <dlfcn.h>
 #include <stdio.h>
@@ -26,7 +26,7 @@ Created By:
 typedef void* (*pfndlopen)(const char*, int);
 
 static size_t s_page_mask;
-static char s_path[MAX_PATH];
+static char s_path[PATH_MAX];
 static const char* s_gametype;
 static pfndlopen old_dlopen = NULL;
 
@@ -65,7 +65,7 @@ void* install_hook(void* target_module, const char* function_name, void* functio
     
     // get page size and set mask for aligning addr for mprotect
     if (page_mask == 0) {
-        page_mask = ~(sysconf(_SC_PAGESIZE) - 1);
+        s_page_mask = ~(sysconf(_SC_PAGESIZE) - 1);
     }
 
     // get dynamic section of target module
@@ -154,13 +154,13 @@ bool hook_enable(const char* gametype) {
     dlclose(s_proc_handle);
 
     // install hook
-    old_dlopen = (pfndlopen_t)install_hook(s_proc_handle, "dlopen", dlopen_hook);
+    old_dlopen = (pfndlopen)install_hook(s_proc_handle, "dlopen", (void*)dlopen_hook);
     return !!old_dlopen;
 }
 
 
 bool hook_disable() {
-    return !!install_hook(s_proc_handle, "dlopen", old_dlopen);
+    return !!install_hook(s_proc_handle, "dlopen", (void*)old_dlopen);
 }
 
 #endif // __linux__

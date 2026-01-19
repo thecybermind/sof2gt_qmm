@@ -46,50 +46,23 @@ static void* dlopen_hook(const char* path, int flags) {
 }
 
 
-int plthook_enum(unsigned int* pos, const char** name_out, void*** addr_out) {
-    const Elf32_Rel* plt = NULL;
-    while (*pos < plthook.rela_plt_cnt) {
-        plt = plthook.rela_plt + *pos;
-        int rv = -1;
-        if (ELF32_R_TYPE(plt->r_info) == R_386_JMP_SLOT) {
-            size_t idx = ELF32_R_SYM(plt->r_info);
-            idx = plthook.dynsym[idx].st_name;
-            if (idx + 1 > plthook.dynstr_size)
-                rv = -1;
-            else {
-                *name_out = plthook.dynstr + idx;
-                *addr_out = (void**)(plthook.plt_addr_base + plt->r_offset);
-                rv = 0;
-            }
-        }
-        (*pos)++;
-        if (rv >= 0)
-            return rv;
-    }
-    *name_out = NULL;
-    *addr_out = NULL;
-    return -1;
-}
-
-
 void* install_hook(void* target_module, const char* function_name, void* function_hook) {
     size_t funcnamelen = strlen(function_name);	// store length of function name for comparison (check first X bytes, see if next byte is '\0' or '@')
 
     struct link_map* lmap = NULL;		// from dlinfo man page: pointer to dynamic section of the shared object
-    const char* plt_addr_base = NULL;	// from dlinfo man page: difference between the address in the ELF file and the address in memory
-    const Elf32_Dyn* dyn = NULL;		// loop through each dynamic section and store the following values:
+    const char* plt_addr_base = NULL;	// from dlinfo man page: difference between an address in the ELF file and the address in memory
+
     const Elf32_Sym* dynsym = NULL;		// DT_SYMTAB: address of dynamic symbol table
     const char* dynstr = NULL;			// DT_STRTAB: dynamic string table
     size_t dynstr_size = 0;				// DT_STRSZ: total size in bytes of the dynamic string table (DT_STRTAB)
     const Elf32_Rel* rela_plt = NULL;	// DT_JMPREL: relocation entries
     size_t rela_plt_cnt = 0;			// DT_PLTRELSZ: total size in bytes of the relocation entries (DT_PLTRELSZ)
 
-    unsigned int pos = 0;
-    const char* name;
-    void** addr;
-    int rv;
-    void* ret = NULL;					// store and return old function address
+    const char* symbol_name;			// current name when looping through symbols
+    void** symbol_addr;					// current address when looping through symbols
 
+    void* ret = NULL;					// store and return old function address
+    
     // get page size and set mask for aligning addr for mprotect
     if (page_mask == 0) {
         page_mask = ~(sysconf(_SC_PAGESIZE) - 1);
@@ -104,8 +77,7 @@ void* install_hook(void* target_module, const char* function_name, void* functio
     plt_addr_base = (char*)lmap->l_addr;
 
     // go through all the sections and save various ones
-    dyn = lmap->l_ld;
-    for (dyn = lmap->l_ld; dyn->d_tag != DT_NULL; dyn++) {
+    for (const Elf32_Dyn* dyn = lmap->l_ld; dyn->d_tag != DT_NULL; dyn++) {
         // .dynsym section
         if (dyn->d_tag == DT_SYMTAB) {
             dynsym = (const Elf32_Sym*)(dyn->d_un.d_ptr);
@@ -119,7 +91,7 @@ void* install_hook(void* target_module, const char* function_name, void* functio
         }
         // .dynstr section
         else if (dyn->d_tag == DT_STRTAB) {
-            dynstr = dyn->d_un.d_ptr;
+            dynstr = (const char*)dyn->d_un.d_ptr;
         }
         // .dynstr size
         else if (dyn->d_tag == DT_STRSZ) {
@@ -135,25 +107,30 @@ void* install_hook(void* target_module, const char* function_name, void* functio
         }
     }
     // make sure we got everything we need
-    if (!dynsym || !dynstr || !dynstr_size || !rela_plt || !rela_plt_cnt) {
-        printf("could not find certain tags\n");
+    if (!dynsym || !dynstr || !dynstr_size || !rela_plt || !rela_plt_cnt)
         return NULL;
-    }
 
-    // todo: merge in plthook_enum 
-    while ((rv = plthook_enum(&pos, &name, &addr)) == 0) {
-        printf("import found: %s %p @ %p\n", name, *addr, addr);
-        if (!strncmp(name, function_name, funcnamelen) && (name[funcnamelen] == '\0' || name[funcnamelen] == '@')) {
-            printf("matching import found for %s: %p\n", function_name, *addr);
-            if (mprotect(ALIGN_ADDR(addr), page_size, PROT_READ | PROT_WRITE) != 0) {
-                printf("could not mprotect RW\n");
-                return NULL;
+    // loop through all relocations
+    for (const Elf32_Rel* plt = rela_plt; plt != rela_plt + rela_plt_cnt; plt++) {
+        // low byte of r_info is the type, high 3 bytes of r_info is the symbol index
+        if (ELF32_R_TYPE(plt->r_info) == R_386_JMP_SLOT) {
+            size_t idx = ELF32_R_SYM(plt->r_info);
+            // get string index for symbol
+            idx = dynsym[idx].st_name;
+            // string index out of bounds, skip
+            if (idx + 1 > dynstr_size)
+                continue;
+            symbol_name = dynstr + idx;
+            symbol_addr = (void**)(plt_addr_base + plt->r_offset);
+            // if this symbol matches the given function name
+            if (!strncmp(symbol_name, function_name, funcnamelen) && (symbol_name[funcnamelen] == '\0' || symbol_name[funcnamelen] == '@')) {
+                if (mprotect(ALIGN_ADDR(symbol_addr), page_size, PROT_READ | PROT_WRITE) != 0)
+                    return NULL;
+                ret = *symbol_addr;
+                *symbol_addr = function_hook;
+                // mprotect(ALIGN_ADDR(symbol_addr), page_size, PROT_READ | PROT_EXEC);
+                return ret;
             }
-            ret = *addr;
-            *addr = function_hook;
-            printf("import entry for %s is now: %p\n", function_name, *addr);
-            // mprotect(ALIGN_ADDR(addr), page_size, PROT_READ | PROT_EXEC);
-            return ret;
         }
     }
 

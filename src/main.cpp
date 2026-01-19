@@ -109,8 +109,8 @@ C_DLLEXPORT intptr_t QMM_syscall(intptr_t cmd, intptr_t* args) {
 		const char* gametype = (const char*)args[0];
 		strncpyz(gt_pluginvars.gt_gametype, gametype, sizeof(gt_pluginvars.gt_gametype));
 		
-		// install LoadLibraryA/dlopen hook in server binary to point gametype dll load to us
-		if (!hook_enable(gametype)) {
+		// install LoadLibraryA/dlopen hook in server binary to point loading of gametype dll to us
+		if (!hook_enable(gt_pluginvars.gt_gametype)) {
 			g_shutdown = true;
 			g_syscall(G_ERROR, "(SOF2GT) Could not hook LoadLibraryA/dlopen!\n");
 			QMM_RET_SUPERCEDE(0);

@@ -20,6 +20,7 @@ Created By:
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <linux/limits.h>
 
 #define ALIGN_ADDR(addr) ((void*)((uintptr_t)addr & s_page_mask))
 
@@ -64,7 +65,7 @@ void* install_hook(void* target_module, const char* function_name, void* functio
     void* ret = NULL;					// store and return old function address
     
     // get page size and set mask for aligning addr for mprotect
-    if (page_mask == 0) {
+    if (s_page_mask == 0) {
         s_page_mask = ~(sysconf(_SC_PAGESIZE) - 1);
     }
 

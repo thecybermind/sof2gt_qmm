@@ -22,11 +22,8 @@ Created By:
 #include <sys/mman.h>
 #include <linux/limits.h>
 
-#define ALIGN_ADDR(addr) ((void*)((uintptr_t)addr & s_page_mask))
-
 typedef void* (*pfndlopen)(const char*, int);
 
-static size_t s_page_mask;
 static char s_path[PATH_MAX];
 static const char* s_gametype;
 static pfndlopen old_dlopen = NULL;
@@ -47,7 +44,10 @@ static void* dlopen_hook(const char* path, int flags) {
 }
 
 
+#define ALIGN_ADDR(addr) ((void*)((uintptr_t)addr & ~(page_size - 1)))
 void* install_hook(void* target_module, const char* function_name, void* function_hook) {
+    size_t page_size = sysconf(_SC_PAGESIZE);   // need to store size of page for mprotect
+
     size_t funcnamelen = strlen(function_name);	// store length of function name for comparison (check first X bytes, see if next byte is '\0' or '@')
 
     struct link_map* lmap = NULL;		// from dlinfo man page: pointer to dynamic section of the shared object
@@ -64,11 +64,6 @@ void* install_hook(void* target_module, const char* function_name, void* functio
 
     void* ret = NULL;					// store and return old function address
     
-    // get page size and set mask for aligning addr for mprotect
-    if (s_page_mask == 0) {
-        s_page_mask = ~(sysconf(_SC_PAGESIZE) - 1);
-    }
-
     // get dynamic section of target module
     if (dlinfo(target_module, RTLD_DI_LINKMAP, &lmap) != 0) {
         printf("dlinfo failed!\n");

@@ -102,19 +102,19 @@ C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
 
 
 C_DLLEXPORT intptr_t QMM_syscall(intptr_t cmd, intptr_t* args) {
-	// this is what the mod calls to initialize a gametype qvm/dll
-	
+	// this cmd is what the mod calls to initialize a gametype qvm/dll
 	if (cmd == G_GT_INIT) {
 		// save the gametype string so we know what gametype file to load
 		const char* gametype = (const char*)args[0];
 		strncpyz(gt_pluginvars.gt_gametype, gametype, sizeof(gt_pluginvars.gt_gametype));
 		
-		// install LoadLibraryA/dlopen hook in server binary to point loading of gametype dll to us
+		// install LoadLibraryA/dlopen hook in server binary to intercept loading of gametype dll
 		if (!hook_enable(gt_pluginvars.gt_gametype)) {
 			g_shutdown = true;
 			g_syscall(G_ERROR, "(SOF2GT) Could not hook LoadLibraryA/dlopen!\n");
 			QMM_RET_SUPERCEDE(0);
 		}
+		QMM_WRITEQMMLOG(PLID, "Hook installed for gametype module!\n", QMMLOG_INFO);
 	}
 
 	QMM_RET_IGNORED(0);
@@ -127,6 +127,7 @@ C_DLLEXPORT intptr_t QMM_vmMain_Post(intptr_t cmd, intptr_t* args) {
 
 
 C_DLLEXPORT intptr_t QMM_syscall_Post(intptr_t cmd, intptr_t* args) {
+	// engine is done loading gametype qvm/dll (actually us)
 	if (cmd == G_GT_INIT) {
 		// unload hook
 		if (!hook_disable()) {
@@ -136,6 +137,7 @@ C_DLLEXPORT intptr_t QMM_syscall_Post(intptr_t cmd, intptr_t* args) {
 			}
 			QMM_RET_SUPERCEDE(0);
 		}
+		QMM_WRITEQMMLOG(PLID, "Hook uninstalled for gametype module!\n", QMMLOG_INFO);
 	}
 	QMM_RET_IGNORED(0);
 }
@@ -148,7 +150,7 @@ C_DLLEXPORT void QMM_PluginMessage(plid_t from_plid, const char* message, void* 
 // entry point: handle gametype vmMain calls from engine
 C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6) {
 	if (cmd == GAMETYPE_INIT) {
-		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Gametype '%s' initialized!", gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
+		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Gametype '%s' initialized!\n", gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
 	}
 
 	intptr_t args[] = { cmd, arg0, arg1, arg2, arg3, arg4, arg5, arg6 };
@@ -184,14 +186,11 @@ C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t
 	if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
 		final_ret = gt_pluginvars.gt_return;
 
-	if (cmd != GAMETYPE_RUN_FRAME)
-		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "vmMain(%d) returning %d", cmd, final_ret), QMMLOG_INFO);
-
 	return final_ret;
 }
 
 
-// handle syscall from gametype mod (DLL or QVM)
+// handle gametype syscalls from gametype mod (DLL or QVM)
 intptr_t SOF2GT_syscall(intptr_t cmd, ...) {
 	// pull args from ..., put cmd in front
 	intptr_t args[SOF2GT_SYSCALL_ARGS + 1] = { cmd };
@@ -236,15 +235,15 @@ intptr_t SOF2GT_syscall(intptr_t cmd, ...) {
 }
 
 
-// pass vmMain calls into QVM gametype mod
-// this is given to plugins
+// pass gametype vmMain calls into QVM gametype mod
+// this is given to SOFT2GT plugins
 intptr_t SOFT2GT_qvm_vmmain(intptr_t cmd, ...) {
 	// if qvm isn't loaded, we need to error
 	if (!gt_qvm.memory) {
 		if (!g_shutdown) {
 			g_shutdown = true;
-			QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "qvm_vmmain(%d): QVM unloaded during previous execution due to a run-time error\n", cmd), QMMLOG_FATAL);
-			g_syscall(G_ERROR, "\n\n=========\nFatal QMM Error:\nThe QVM was unloaded during previous execution due to a run-time error.\n=========\n");
+			QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "SOFT2GT_qvm_vmmain(%d): QVM unloaded during previous execution due to a run-time error\n", cmd), QMMLOG_FATAL);
+			g_syscall(G_ERROR, "\n\n=========\nFatal SOFT2GT Error:\nThe QVM was unloaded during previous execution due to a run-time error.\n=========\n");
 		}
 		return 0;
 	}
@@ -268,7 +267,7 @@ intptr_t SOFT2GT_qvm_vmmain(intptr_t cmd, ...) {
 }
 
 
-// handle syscalls from QVM gametype mod (continues to SOF2GT_syscall)
+// handle gametype syscalls from QVM gametype mod (continues to SOF2GT_syscall)
 int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args) {
 	intptr_t ret = 0;
 
@@ -360,7 +359,7 @@ int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args) {
 
 // entry point: handle gametype load from engine
 C_DLLEXPORT void dllEntry(eng_syscall_t syscall) {
-	// store gt syscall from engine
+	// store gametype syscall from engine
 	gt_pluginvars.gt_syscall = syscall;
 
 	QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "Gametype hook DLL loaded for gametype '%s'\n", gt_pluginvars.gt_gametype), QMMLOG_NOTICE);

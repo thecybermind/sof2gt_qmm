@@ -14,11 +14,8 @@ Created By:
 #include <string.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <dbghelp.h>
 
 #include "main.h"
-
-#pragma comment( lib, "dbghelp.lib") // ImageDirectoryEntryToData
 
 typedef HMODULE(WINAPI *pfnLLA_t)(LPCSTR);
 
@@ -50,17 +47,20 @@ static HMODULE WINAPI LoadLibraryA_Hook(LPCSTR lpLibFileName) {
 
 
 static void* install_hook(HMODULE target_module, const char* dll_name, const char* function_name, void* function_hook) {
-    PIMAGE_IMPORT_DESCRIPTOR importDescriptorTable, importDescriptor;
     char* module_base = (char*)target_module;   // module base as a char* for adding RVAs
     void* ret = nullptr;                        // store and return old function address
     MEMORY_BASIC_INFORMATION thunkMemInfo;
     DWORD oldProtect, _;
-
-    // get import descriptor table
-    importDescriptorTable = (PIMAGE_IMPORT_DESCRIPTOR)ImageDirectoryEntryToData(target_module, TRUE, IMAGE_DIRECTORY_ENTRY_IMPORT, &_);
+    PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)module_base;
+    PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)(module_base + dosHeaders->e_lfanew);
+    PIMAGE_DATA_DIRECTORY importDescriptorTable = &ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    PIMAGE_IMPORT_DESCRIPTOR importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(module_base + importDescriptorTable->VirtualAddress);
+    LPCSTR libraryName = NULL;
+    HMODULE library = NULL;
+    PIMAGE_IMPORT_BY_NAME functionName = NULL;
 
     // loop through each descriptor entry looking for a matching DLL name (NULL = check every DLL)
-    for (importDescriptor = importDescriptorTable; importDescriptor->Name != 0; importDescriptor++) {
+    for (; importDescriptor->Name != 0; importDescriptor++) {
         PIMAGE_THUNK_DATA thunk_name = (PIMAGE_THUNK_DATA)(module_base + importDescriptor->OriginalFirstThunk);
         PIMAGE_THUNK_DATA thunk_addr = (PIMAGE_THUNK_DATA)(module_base + importDescriptor->FirstThunk);
 

@@ -140,6 +140,7 @@ bool hook_enable(const char* gametype) {
 
     // get our file path
     Dl_info dli;
+    memset(&dli, 0, sizeof(dli));
     if (!dladdr(&dli, &dli))
         return false;
     strncpy(s_path, dli.dli_sname, sizeof(s_path));

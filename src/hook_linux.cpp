@@ -40,7 +40,7 @@ static void* dlopen_hook(const char* path, int flags) {
         !strstr(path, "qmm")) {
         return old_dlopen(s_path, flags);
     }
-    return old_dlopen(path);
+    return old_dlopen(path, flags);
 }
 
 

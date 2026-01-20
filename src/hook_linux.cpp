@@ -138,6 +138,7 @@ static void* s_proc_handle = nullptr;
 bool hook_enable(const char* gametype) {
     s_gametype = gametype;
 
+    static char path[PATH_MAX];
     // get our file path
     Dl_info dli;
     memset(&dli, 0, sizeof(dli));
@@ -147,8 +148,7 @@ bool hook_enable(const char* gametype) {
     s_path[sizeof(s_path) - 1] = '\0';
 
     // get handle to main executable
-    s_proc_handle = dlopen(NULL, RTLD_NOW);
-    dlclose(s_proc_handle);
+    s_proc_handle = dlopen(NULL, RTLD_NOLOAD);
 
     // install hook
     old_dlopen = (pfndlopen)install_hook(s_proc_handle, "dlopen", (void*)dlopen_hook);

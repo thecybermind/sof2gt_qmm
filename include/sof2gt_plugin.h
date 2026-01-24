@@ -9,8 +9,8 @@ Created By:
 
 */
 
-#ifndef __SOF2GT_QMM_SOF2GT_PLUGIN_H__
-#define __SOF2GT_QMM_SOF2GT_PLUGIN_H__
+#ifndef SOF2GT_QMM_SOF2GT_PLUGIN_H
+#define SOF2GT_QMM_SOF2GT_PLUGIN_H
 
 #include <cstdint>
 #include <qmmapi.h>
@@ -23,4 +23,4 @@ struct sof2gt_plugininfo_t {
 	mod_vmMain_t gt_vmMain;
 };
 
-#endif // __SOF2GT_QMM_SOF2GT_PLUGIN_H__
+#endif // SOF2GT_QMM_SOF2GT_PLUGIN_H

@@ -9,8 +9,8 @@ Created By:
 
 */
 
-#ifndef __SOF2GT_QMM_HOOK_H__
-#define __SOF2GT_QMM_HOOK_H__
+#ifndef SOF2GT_QMM_HOOK_H
+#define SOF2GT_QMM_HOOK_H
 
 bool hook_enable(const char* gametype);
 bool hook_disable();
@@ -25,4 +25,4 @@ bool hook_disable();
 
 #endif // __linux__
 
-#endif // __SOF2GT_QMM_HOOK_H__
+#endif // SOF2GT_QMM_HOOK_H

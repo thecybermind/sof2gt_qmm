@@ -9,8 +9,8 @@ Created By:
 
 */
 
-#ifndef __SOF2GT_QMM_UTIL_H__
-#define __SOF2GT_QMM_UTIL_H__
+#ifndef SOF2GT_QMM_UTIL_H
+#define SOF2GT_QMM_UTIL_H
 
 #define COUNTOF(arr)  (sizeof(arr) / sizeof(arr[0]))
 
@@ -38,4 +38,4 @@ char* strncpyz(char* dest, const char* src, size_t count);
 
 #endif // __linux__
 
-#endif // __SOF2GT_QMM_UTIL_H__
+#endif // SOF2GT_QMM_UTIL_H

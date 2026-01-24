@@ -9,8 +9,8 @@ Created By:
 
 */
 
-#ifndef __SOF2GT_QMM_VERSION_H__
-#define __SOF2GT_QMM_VERSION_H__
+#ifndef SOF2GT_QMM_VERSION_H
+#define SOF2GT_QMM_VERSION_H
 
 #define STRINGIFY(x) STRINGIFY2(x)
 #define STRINGIFY2(x) #x
@@ -41,4 +41,4 @@ Created By:
 #define SOF2GT_QMM_COMPILE		    __TIME__ " " __DATE__
 #define SOF2GT_QMM_BUILDER		    "Kevin Masterson"
 
-#endif // __SOF2GT_QMM_VERSION_H__
+#endif // SOF2GT_QMM_VERSION_H

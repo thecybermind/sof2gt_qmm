@@ -9,8 +9,8 @@ Created By:
 
 */
 
-#ifndef __SOF2GT_QMM_MAIN_H__
-#define __SOF2GT_QMM_MAIN_H__
+#ifndef SOF2GT_QMM_MAIN_H
+#define SOF2GT_QMM_MAIN_H
 
 #include <cstdint>
 #include "sof2gt_plugin.h"
@@ -44,4 +44,4 @@ int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args);
 // this subtracts the base VM address pointer from a value, for returning from syscall (this should evaluate to an int)
 #define vmret(ptr)	(int)(ptr ? (intptr_t)ptr - (intptr_t)membase : 0)
 
-#endif // __SOF2GT_QMM_MAIN_H__
+#endif // SOF2GT_QMM_MAIN_H

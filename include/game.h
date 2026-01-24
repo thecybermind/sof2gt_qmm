@@ -9,8 +9,8 @@ Created By:
 
 */
 
-#ifndef __SOF2GT_QMM_GAME_H__
-#define __SOF2GT_QMM_GAME_H__
+#ifndef SOF2GT_QMM_GAME_H
+#define SOF2GT_QMM_GAME_H
 
 #if defined(GAME_SOF2MP)
     #include <sof2mp/game/g_local.h>
@@ -20,4 +20,4 @@ Created By:
 #error This plugin is only made for Soldier of Fortune 2 Multiplayer!
 #endif
 
-#endif // __SOF2GT_QMM_GAME_H__
+#endif // SOF2GT_QMM_GAME_H

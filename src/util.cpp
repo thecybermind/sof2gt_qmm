@@ -10,11 +10,9 @@ Created By:
 */
 
 #define _CRT_SECURE_NO_WARNINGS 1
-#include "version.h"
 #include <qmmapi.h>
 #include <cstring>
-#include <string>
-#include "game.h"
+#include <cstdio>
 #include "util.h"
 
 

@@ -13,8 +13,8 @@ Created By:
 
 #include <qmmapi.h>
 
-#include <vector>
 #include <string.h>
+#include <cstdint>
 
 #include "version.h"
 #include "game.h"
@@ -416,7 +416,7 @@ fail:
 static bool s_load_qvm(const char* file) {
 	int fpk3;
 	intptr_t filelen;
-	std::vector<uint8_t> filemem;
+	uint8_t* filemem = nullptr;
 	int loaded;
 
 	// load file using engine functions to read into pk3s if necessary
@@ -424,22 +424,28 @@ static bool s_load_qvm(const char* file) {
 	if (filelen <= 0) {
 		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "s_load_qvm(\"%s\"): Could not open QVM for reading for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
 		g_syscall(G_FS_FCLOSE_FILE, fpk3);
-		return false;
+		goto fail;
 	}
-	filemem.resize((size_t)filelen);
+	filemem = (uint8_t*)malloc(filelen);
 
-	g_syscall(G_FS_READ, filemem.data(), filelen, fpk3);
+	g_syscall(G_FS_READ, filemem, filelen, fpk3);
 	g_syscall(G_FS_FCLOSE_FILE, fpk3);
 
 	// attempt to load mod
-	loaded = qvm_load(&gt_qvm, filemem.data(), filemem.size(), SOF2GT_qvm_syscall, true, nullptr);	// true = verify_data
+	loaded = qvm_load(&gt_qvm, filemem, filelen, SOF2GT_qvm_syscall, true, nullptr);	// true = verify_data
 	if (!loaded) {
 		QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "s_load_qvm(\"%s\"): QVM load failed for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
-		return false;
+		goto fail;
 	}
 
 	// special function to call into QVM
 	gt_pluginvars.gt_vmMain = SOFT2GT_qvm_vmmain;
 
 	return true;
+
+fail:
+	if (filemem)
+		free(filemem);
+	filemem = nullptr;
+	return false;
 }

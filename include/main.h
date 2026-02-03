@@ -54,6 +54,6 @@ int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args);
 // this gets an argument value (evaluate to an intptr_t)
 #define VMARG(arg)	(intptr_t)args[arg]
 // this adds the base VM address pointer to an argument value (evaluate to a pointer)
-#define VMPTR(arg)	(intptr_t)(args[arg] ? membase + args[arg] : nullptr)
+#define VMPTR(arg)	(args[arg] ? membase + args[arg] : nullptr)
 
 #endif // SOF2GT_QMM_MAIN_H

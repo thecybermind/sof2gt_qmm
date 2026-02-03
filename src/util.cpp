@@ -13,6 +13,7 @@ Created By:
 #include <qmmapi.h>
 #include <cstring>
 #include <cstdio>
+#include <cstdarg>
 #include "util.h"
 
 

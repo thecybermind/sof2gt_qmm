@@ -1,7 +1,7 @@
 # SoF2GT_QMM
-SoF2GT_QMM - Hook gametype dlls/qvms for Soldier of Fortune 2
-Copyright 2025-2026
-https://github.com/thecybermind/sof2gt_qmm/
+SoF2GT_QMM - Hook gametype dlls/qvms for Soldier of Fortune 2  
+Copyright 2025-2026  
+https://github.com/thecybermind/sof2gt_qmm/  
 3-clause BSD license: https://opensource.org/license/bsd-3-clause  
 
 Created By: Kevin Masterson < k.m.masterson@gmail.com >

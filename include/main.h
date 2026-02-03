@@ -13,7 +13,7 @@ Created By:
 #define SOF2GT_QMM_MAIN_H
 
 #include <cstdint>
-#include "sof2gt_plugin.h"
+#include "sof2gt_api.h"
 #include "qvm.h"
 
 #define SOF2GT_SYSCALL_ARGS 6
@@ -25,8 +25,22 @@ Created By:
 extern void* gt_dll;
 // qvm virtual machine
 extern qvm_t gt_qvm;
-// stuff to pass to plugins
-extern sof2gt_plugininfo_t gt_pluginvars;
+
+// track if we shouldn't load (no plugins or hook failed)
+extern bool g_disabled;
+
+// track if we shutdown
+extern bool g_shutdown;
+
+// plugin stuff
+typedef intptr_t (*sof2gt_pluginfunc_t)(intptr_t cmd, intptr_t* args);
+typedef struct sof2gt_plugin_s {
+    plid_t plid;
+    sof2gt_pluginfunc_t SOF2GT_GT_vmMain;
+    sof2gt_pluginfunc_t SOF2GT_GT_vmMain_Post;
+    sof2gt_pluginfunc_t SOF2GT_GT_syscall;
+    sof2gt_pluginfunc_t SOF2GT_GT_syscall_Post;
+} sof2gt_plugin_t;
 
 // handle syscall from gametype mod (DLL or QVM)
 intptr_t SOF2GT_syscall(intptr_t cmd, ...);

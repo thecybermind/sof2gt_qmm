@@ -36,7 +36,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD, LPVOID) {
 // reference count of this DLL, the first FreeLibrary called on it to unload the gametype DLL will also unload the
 // plugin entirely, causing a crash in QMM. So to increase the reference count, we use GetModuleHandleExA.
 static HMODULE WINAPI LoadLibraryA_Hook(LPCSTR lpLibFileName) {
-    if (strstr(lpLibFileName, "gt_") &&
+    if (!g_disabled &&
+        strstr(lpLibFileName, "gt_") &&
         strstr(lpLibFileName, s_gametype) &&
         !strstr(lpLibFileName, "qmm")) {
         GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)s_dll, &s_dll);

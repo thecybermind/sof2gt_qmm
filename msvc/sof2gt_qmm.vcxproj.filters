@@ -30,7 +30,7 @@
     <ClInclude Include="..\include\main.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\sof2gt_plugin.h">
+    <ClInclude Include="..\include\sof2gt_api.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\hook.h">

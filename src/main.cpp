@@ -46,7 +46,7 @@ void* gt_dll = nullptr;
 qvm_t gt_qvm;
 
 // track if we shouldn't load (no plugins or hook failed)
-bool g_disabled = true;
+bool g_disabled = false;
 
 // track if we shutdown
 bool g_shutdown = false;
@@ -102,8 +102,13 @@ C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
 		QMM_PLUGIN_BROADCAST(PLID, "SOF2GT_Attach", &gt_pluginvars, sizeof(gt_pluginvars));
 
 		// if we didn't attach to any plugins, then disable ourselves
-		if (s_plugins.empty())
+		if (s_plugins.empty()) {
 			g_disabled = true;
+			QMM_WRITEQMMLOG(PLID, "No SoF2GT plugins found, disabling!\n", QMMLOG_INFO);
+		}
+		else {
+			QMM_WRITEQMMLOG(PLID, QMM_VARARGS(PLID, "%d SoF2GT plugin(s) found!\n", s_plugins.size()), QMMLOG_INFO);
+		}
 	}
 	else if (cmd == GAME_SHUTDOWN) {
 		if (gt_dll)
@@ -129,6 +134,8 @@ C_DLLEXPORT intptr_t QMM_syscall(intptr_t cmd, intptr_t* args) {
 		// if cannot install hook, then disable ourselves
 		if (!hook_enable(gt_pluginvars.gt_gametype)) {
 			g_disabled = true;
+			QMM_WRITEQMMLOG(PLID, "Failed to install GetProcAddress/dlopen hook, disabling!\n", QMMLOG_NOTICE);
+
 			QMM_RET_IGNORED(0);
 		}
 		QMM_WRITEQMMLOG(PLID, "Hook installed for gametype module!\n", QMMLOG_INFO);
@@ -367,7 +374,7 @@ int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args) {
 	case GT_RESETITEM:						// void (int itemid)
 	case GT_STARTGLOBALSOUND:				// void (int soundid)
 	case GT_RESTART:						// void (int delay)
-		ret = SOF2GT_syscall(cmd, args[0]);
+		ret = SOF2GT_syscall(cmd, VMARG(0));
 		break;
 	case GT_PRINT:							// (const char *string)
 	case GT_ERROR:							// (const char *string)
@@ -377,7 +384,7 @@ int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args) {
 	case GT_REGISTEREFFECT:					// int	(const char* name)
 	case GT_REGISTERICON:					// int	(const char* icon)
 	case GT_USETARGETS:						// void (const char* targetname)
-		ret = SOF2GT_syscall(cmd, vmptr(args[0]));
+		ret = SOF2GT_syscall(cmd, VMPTR(0));
 		break;
 	case GT_ATAN2:							// (double y, double x)
 	case GT_DOESCLIENTHAVEITEM:				// bool (int clientid, int itemid)
@@ -386,50 +393,50 @@ int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args) {
 	case GT_GIVECLIENTITEM:					// void (int clientid, int itemid)
 	case GT_TAKECLIENTITEM:					// void (int clientid, int itemid)
 	case GT_SETHUDICON:						// void	(int index, int icon)
-		ret = SOF2GT_syscall(cmd, args[0], args[1]);
+		ret = SOF2GT_syscall(cmd, VMARG(0), VMARG(1));
 		break;
 	case GT_TESTPRINTINT:					// (char* msg, int i)
 	case GT_TESTPRINTFLOAT:					// (char* msg, float f)
-		ret = SOF2GT_syscall(cmd, vmptr(args[0]), args[1]);
+		ret = SOF2GT_syscall(cmd, VMPTR(0), VMARG(1));
 		break;
 	case GT_TEXTMESSAGE:					// void (int clientid, const char* message)
 	case GT_RADIOMESSAGE:					// void (int clientid, const char* message)
 	case GT_GETCLIENTORIGIN:				// void (int clientid, vec3_t origin)
 	case GT_STARTSOUND:						// void (int soundid, vec3_t origin)
-		ret = SOF2GT_syscall(cmd, args[0], vmptr(args[1]));
+		ret = SOF2GT_syscall(cmd, VMARG(0), VMPTR(1));
 		break;
 	case GT_CVAR_SET:						// (const char *var_name, const char *value)
 	case GT_PERPENDICULARVECTOR:			// (vec3_t dst, const vec3_t src)
-		ret = SOF2GT_syscall(cmd, vmptr(args[0]), vmptr(args[1]));
+		ret = SOF2GT_syscall(cmd, VMPTR(0), VMPTR(1));
 		break;
 	case GT_MEMSET:							// (void* dest, int c, size_t count)
-		ret = SOF2GT_syscall(cmd, vmptr(args[0]), args[1], args[2]);
+		ret = SOF2GT_syscall(cmd, VMPTR(0), VMARG(2), VMARG(2));
 		break;
 	case GT_GETCLIENTNAME:					// void (int clientid, const char* buffer, int buffersize)
 	case GT_GETCLIENTITEMS:					// void (int clientid, int* buffer, int buffersize)
 	case GT_GETTRIGGERTARGET:				// void (int triggerid, char* buffer, int buffersize)
 	case GT_GETCLIENTLIST:					// int  (team_t team, int* clients, int clientcount)
-		ret = SOF2GT_syscall(cmd, args[0], vmptr(args[1]), args[2]);
+		ret = SOF2GT_syscall(cmd, VMARG(0), VMPTR(1), VMARG(2));
 		break;
 	case GT_CVAR_VARIABLE_STRING_BUFFER:	// (const char *var_name, char *buffer, int bufsize)
 	case GT_MEMCPY:							// (void* dest, const void* src, size_t count)
 	case GT_STRNCPY:						// (char* strDest, const char* strSource, size_t count)
-		ret = SOF2GT_syscall(cmd, vmptr(args[0]), vmptr(args[1]), args[2]);
+		ret = SOF2GT_syscall(cmd, VMPTR(0), VMPTR(1), VMARG(2));
 		break;
 	case GT_REGISTERITEM:					// bool (int itemid, const char* name, gtItemDef_t* def)
 	case GT_REGISTERTRIGGER:				// bool (int trigid, const char* name, gtTriggerDef_t* def)
 	case GT_PLAYEFFECT:						// void	(int effect, vec3_t origin, vec3_t angles)
 	case GT_SPAWNITEM:						// void (int itemid, vec3_t origin, vec3_t angles)
-		ret = SOF2GT_syscall(cmd, args[0], vmptr(args[1]), vmptr(args[2]));
+		ret = SOF2GT_syscall(cmd, VMARG(0), VMPTR(1), VMPTR(2));
 		break;
 	case GT_MATRIXMULTIPLY:					// (float in1[3][3], float in2[3][3], float out[3][3])
-		ret = SOF2GT_syscall(cmd, vmptr(args[0]), vmptr(args[1]), vmptr(args[2]));
+		ret = SOF2GT_syscall(cmd, VMPTR(0), VMPTR(1), VMPTR(2));
 		break;
 	case GT_CVAR_REGISTER:					// (vmCvar_t *vmCvar, const char *varName, const char *defaultValue, int flags)
-		ret = SOF2GT_syscall(cmd, vmptr(args[0]), vmptr(args[1]), vmptr(args[2]), args[3]);
+		ret = SOF2GT_syscall(cmd, VMPTR(0), VMPTR(1), VMPTR(2), VMARG(3));
 		break;
 	case GT_ANGLEVECTORS:					// (const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
-		ret = SOF2GT_syscall(cmd, vmptr(args[0]), vmptr(args[1]), vmptr(args[2]), vmptr(args[3]));
+		ret = SOF2GT_syscall(cmd, VMPTR(0), VMPTR(1), VMPTR(2), VMPTR(3));
 		break;
 	default:
 		ret = 0;

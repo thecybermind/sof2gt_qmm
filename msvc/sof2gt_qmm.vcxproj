@@ -15,7 +15,7 @@
     <ClInclude Include="..\include\hook.h" />
     <ClInclude Include="..\include\main.h" />
     <ClInclude Include="..\include\qvm.h" />
-    <ClInclude Include="..\include\sof2gt_plugin.h" />
+    <ClInclude Include="..\include\sof2gt_api.h" />
     <ClInclude Include="..\include\util.h" />
     <ClInclude Include="..\include\version.h" />
   </ItemGroup>

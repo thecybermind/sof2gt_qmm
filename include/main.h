@@ -52,10 +52,8 @@ intptr_t SOFT2GT_qvm_vmmain(intptr_t cmd, ...);
 int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args);
     
 // this gets an argument value (evaluate to an intptr_t)
-#define vmarg(arg)	(intptr_t)args[arg]
+#define VMARG(arg)	(intptr_t)args[arg]
 // this adds the base VM address pointer to an argument value (evaluate to a pointer)
-#define vmptr(arg)	(args[arg] ? membase + args[arg] : nullptr)
-// this subtracts the base VM address pointer from a value, for returning from syscall (this should evaluate to an int)
-#define vmret(ptr)	(int)(ptr ? (intptr_t)ptr - (intptr_t)membase : 0)
+#define VMPTR(arg)	(intptr_t)(args[arg] ? membase + args[arg] : nullptr)
 
 #endif // SOF2GT_QMM_MAIN_H

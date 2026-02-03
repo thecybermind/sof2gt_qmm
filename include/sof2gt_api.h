@@ -36,7 +36,7 @@ extern intptr_t SOF2GT_GT_syscall(intptr_t cmd, intptr_t* args);
 extern intptr_t SOF2GT_GT_syscall_Post(intptr_t cmd, intptr_t* args);
 
 #define SOF2GT_GIVE_FUNCS() do { \
-                                intptr_t(*funcs)(intptr_t cmd, intptr_t* args)[] = { \
+                                intptr_t(*funcs[])(intptr_t cmd, intptr_t* args) = { \
                                     &SOF2GT_GT_vmMain, \
                                     &SOF2GT_GT_vmMain_Post, \
                                     &SOF2GT_GT_syscall, \
@@ -46,7 +46,7 @@ extern intptr_t SOF2GT_GT_syscall_Post(intptr_t cmd, intptr_t* args);
                             } while(0)
 
 // macros to help set the plugin result value
-#define SOF2GT_SET_RESULT(res)    sof2gt_pluginvars->g_result = (pluginres_t)(res)
+#define SOF2GT_SET_RESULT(res)    sof2gt_pluginvars->gt_result = (pluginres_t)(res)
 #define SOF2GT_RETURN(res, ret)   return (SOF2GT_SET_RESULT(res), (ret))
 #define SOF2GT_RET_ERROR(ret)     SOF2GT_RETURN(QMM_ERROR, (ret))
 #define SOF2GT_RET_IGNORED(ret)	  SOF2GT_RETURN(QMM_IGNORED, (ret))

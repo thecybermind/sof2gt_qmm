@@ -18,23 +18,24 @@ Created By:
 
 #ifdef QMM_LOGGING
 void log_c(int severity, const char* tag, const char* fmt, ...);
-enum { QMM_LOG_TRACE, QMM_LOG_DEBUG, QMM_LOG_INFO, QMM_LOG_NOTICE, QMM_LOG_WARNING, QMM_LOG_ERROR, QMM_LOG_FATAL }; 
+enum { QMM_LOG_TRACE, QMM_LOG_DEBUG, QMM_LOG_INFO, QMM_LOG_NOTICE, QMM_LOG_WARNING, QMM_LOG_ERROR, QMM_LOG_FATAL };
+#define QMM_LOGGING_TAG "SOF2GT_QMM"
 #else
 #define log_c(...) /* */
 #endif
 
 
-int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, vmsyscall_t vmsyscall, int verify_data, qvm_alloc_t* allocator) {
-    if (!qvm || qvm->memory || !filemem || !filesize || !vmsyscall)
+int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, qvmsyscall_t qvmsyscall, int verify_data, qvm_alloc_t* allocator) {
+    if (!qvm || qvm->memory || !filemem || !filesize || !qvmsyscall)
         return 0;
 
     if (filesize < sizeof(qvmheader_t)) {
-        log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: too small for header\n");
+        log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: too small for header\n");
         goto fail;
     }
-
+    
     qvm->filesize = filesize;
-    qvm->vmsyscall = vmsyscall;
+    qvm->qvmsyscall = qvmsyscall;
     qvm->verify_data = verify_data;
     // if null, use default allocator (uses malloc/free)
     qvm->allocator = allocator ? allocator : &qvm_allocator_default;
@@ -46,28 +47,28 @@ int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, vmsyscall_t vm
 
     // check header fields for oddities
     if (header.magic != QVM_MAGIC) {
-        log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: incorrect magic number\n");
+        log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: incorrect magic number\n");
         goto fail;
     }
     if (filesize < sizeof(header) + header.codelen + header.datalen + header.litlen) {
-        log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: filesize too small for segment sizes\n");
+        log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: filesize too small for segment sizes\n");
         goto fail;
     }
     if (header.codeoffset < sizeof(header) ||
         header.codeoffset > filesize ||
         header.codeoffset + header.codelen > filesize) {
-        log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: code offset/length has invalid value\n");
+        log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: code offset/length has invalid value\n");
         goto fail;
     }
     if (header.dataoffset < sizeof(header) ||
         header.dataoffset > filesize ||
         header.dataoffset + header.datalen + header.litlen > filesize) {
-        log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: data offset/length has invalid value\n");
+        log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: data offset/length has invalid value\n");
         goto fail;
     }
     if (header.instructioncount < header.codelen / 5 || // assume each op in the code segment is 5 bytes for a minimum
         header.instructioncount > header.codelen) {
-        log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: numops has invalid value\n");
+        log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: numops has invalid value\n");
         goto fail;
     }
 
@@ -82,7 +83,7 @@ int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, vmsyscall_t vm
     // in that space
     QVM_NEXT_POW_2(codeseglen);
     qvm->codeseglen = codeseglen;
-
+    
     // data segment is all the data segment lengths combined (plus optional extra stack space)
     size_t dataseglen = header.datalen + header.litlen + header.bsslen + QVM_EXTRA_PROGRAMSTACK_SIZE;
     // save actual dataseglen before rounding up
@@ -107,6 +108,10 @@ int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, vmsyscall_t vm
     qvm->codesegment = (qvmop_t*)qvm->memory;
     qvm->datasegment = qvm->memory + qvm->codeseglen;
     qvm->stackptr = (int*)(qvm->datasegment + qvm->dataseglen);
+    
+    // set bounds of stack
+    qvm->stackhigh = qvm->stackptr;
+    qvm->stacklow = (int*)((uint8_t*)qvm->stackhigh - qvm->stacksize);
 
     // start loading instructions from the file's code offset into VM memory block
     const uint8_t* codeoffset = filemem + header.codeoffset;
@@ -115,7 +120,7 @@ int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, vmsyscall_t vm
     for (uint32_t i = 0; i < header.instructioncount; ++i) {
         // make sure we're not reading past the end of the codesegment in the file
         if (codeoffset >= filemem + header.codeoffset + header.codelen) {
-            log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: can't read instruction at %d, reached end of file\n", i);
+            log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: can't read instruction at %d, reached end of file\n", i);
             goto fail;
         }
 
@@ -124,10 +129,10 @@ int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, vmsyscall_t vm
 
         // make sure opcode is valid
         if (opcode < 0 || opcode >= QVM_OP_NUM_OPS) {
-            log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: invalid opcode value at %d: %d\n", i, opcode);
+            log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: invalid opcode value at %d: %d\n", i, opcode);
             goto fail;
         }
-
+        
         // write opcode (to qvmop_t)
         qvm->codesegment[i].op = opcode;
 
@@ -159,7 +164,7 @@ int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, vmsyscall_t vm
             // all the above instructions have 4-byte params
             // make sure we're not reading an int past the end of the codesegment in the file
             if (codeoffset + 3 >= filemem + header.codeoffset + header.codelen) {
-                log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: can't read instruction %d, reached end of file\n", i);
+                log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: can't read instruction %d, reached end of file\n", i);
                 goto fail;
             }
             qvm->codesegment[i].param = *(int*)codeoffset;
@@ -170,7 +175,7 @@ int qvm_load(qvm_t* qvm, const uint8_t* filemem, size_t filesize, vmsyscall_t vm
             // this instruction has a 1-byte param
             // make sure we're not reading past the end of the codesegment in the file
             if (codeoffset >= filemem + header.codeoffset + header.codelen) {
-                log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_load(): Invalid QVM file: can't read instruction %d, reached end of file\n", i);
+                log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_load(): Invalid QVM file: can't read instruction %d, reached end of file\n", i);
                 goto fail;
             }
             qvm->codesegment[i].param = (int)*codeoffset;
@@ -264,12 +269,14 @@ int qvm_exec(qvm_t* qvm, int argc, int* argv) {
      * QVM_OP_LOCAL.
      */
 
-     // opstack for math/comparison/temp/etc operations (instead of using registers)
-     // +2 for some extra space to "harmlessly" read 2 values (like QVM_OP_BLOCK_COPY) if opstack is empty (like at start)
-    int opstack[QVM_OPSTACK_SIZE + 2];
-    memset(opstack, 0, sizeof(opstack));
+    // opstack for math/comparison/temp/etc operations (instead of using registers)
+    // +2 for some extra space to "harmlessly" read 2 values (like QVM_OP_BLOCK_COPY) if opstack is empty (like at start)
+    int opstacklow[QVM_OPSTACK_SIZE + 2];
+    memset(opstacklow, 0, sizeof(opstacklow));
     // opstack pointer (starts at end of block, grows down)
-    int* stack = opstack + QVM_OPSTACK_SIZE;
+    int* opstack = opstacklow + QVM_OPSTACK_SIZE;
+    // save upper bound of opstack for bounds checking
+    int* opstackhigh = opstack;
 
     // current op
     qvmopcode_t op;
@@ -283,30 +290,30 @@ int qvm_exec(qvm_t* qvm, int argc, int* argv) {
         // store instruction index
         instr_index = (int)(opptr - qvm->codesegment);
 
-        // verify program stack pointer is in stack within bss segment (+1 to allow starting at 1 past the end of block)
-        if ((uint8_t*)programstack < qvm->datasegment + qvm->dataseglen - qvm->stacksize ||
-            (uint8_t*)programstack > qvm->datasegment + qvm->dataseglen) {
-            intptr_t stackusage = qvm->datasegment + qvm->dataseglen - (uint8_t*)programstack;
-            log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: program stack overflow! Program stack size is currently %d, max is %d.\n", vmMain_cmd, instr_index, stackusage, qvm->stacksize);
+        // verify program stack pointer is in program stack
+        // using > to allow starting at 1 past the end of block
+        if (programstack <= qvm->stacklow || programstack > qvm->stackhigh) {
+            ptrdiff_t stackusage = (uint8_t*)qvm->stackhigh - (uint8_t*)programstack;
+            log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: program stack overflow! Program stack size is currently %d, max is %d.\n", vmMain_cmd, instr_index, stackusage, qvm->stacksize);
             goto fail;
         }
-        // verify op stack pointer is in op stack
+        // verify opstack pointer is in op stack
         // using > to allow starting at 1 past the end of block
-        if (stack <= opstack || stack > opstack + QVM_OPSTACK_SIZE) {
-            intptr_t stackusage = opstack + QVM_OPSTACK_SIZE - stack;
-            log_c(QMM_LOG_ERROR, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: opstack overflow! Opstack size is currently %d, max is %d.\n", vmMain_cmd, instr_index, stackusage, QVM_OPSTACK_SIZE);
+        if (opstack <= opstacklow || opstack > opstackhigh) {
+            intptr_t stackusage = (uint8_t*)opstackhigh - (uint8_t*)opstack;
+            log_c(QMM_LOG_ERROR, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: opstack overflow! Opstack size is currently %d, max is %d.\n", vmMain_cmd, instr_index, stackusage, QVM_OPSTACK_SIZE);
             goto fail;
         }
 
         // get the instruction's opcode and param
         op = (qvmopcode_t)opptr->op;
         param = opptr->param;
-
+        
         // throughout opcode handling, opptr points to the NEXT instruction to execute
         ++opptr;
 
         switch (op) {
-            // miscellaneous opcodes
+        // miscellaneous opcodes
 
         case QVM_OP_UNDEF:
             // undefined - used as alignment padding at end of codesegment. treat as error
@@ -314,7 +321,7 @@ int qvm_exec(qvm_t* qvm, int argc, int* argv) {
         default:
             // anything else
             // todo: dump stacks/memory?
-            log_c(QMM_LOG_FATAL, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: unhandled opcode %d\n", vmMain_cmd, instr_index, op);
+            log_c(QMM_LOG_FATAL, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: unhandled opcode %d\n", vmMain_cmd, instr_index, op);
             goto fail;
 
         case QVM_OP_NOP:
@@ -325,7 +332,7 @@ int qvm_exec(qvm_t* qvm, int argc, int* argv) {
             // todo: dump stacks/memory?
             break;
 
-            // functions
+        // functions
 
         case QVM_OP_ENTER:
             // enter a function:
@@ -341,7 +348,7 @@ int qvm_exec(qvm_t* qvm, int argc, int* argv) {
             // verify the value saved in programstack[1] matches param, then remove stack frame (size=param).
             // then, grab RII from top of previous stack frame and then jump to it
             if (programstack[1] != param) {
-                log_c(QMM_LOG_FATAL, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: QVM_OP_LEAVE param (%d) does not match QVM_OP_ENTER param (%d)\n", vmMain_cmd, instr_index, param, programstack[1]);
+                log_c(QMM_LOG_FATAL, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: QVM_OP_LEAVE param (%d) does not match QVM_OP_ENTER param (%d)\n", vmMain_cmd, instr_index, param, programstack[1]);
                 goto fail;
             }
             // clean up stack frame
@@ -355,23 +362,23 @@ int qvm_exec(qvm_t* qvm, int argc, int* argv) {
 
         case QVM_OP_CALL: {
             // call a function:
-            // address in stack[0]
-            int jump_to = stack[0];
+            // address in opstack[0]
+            int jump_to = opstack[0];
             QVM_POP();
 
             // negative address means an engine trap
             if (jump_to < 0) {
-                // store local stack pointer in qvm object for re-entrancy
+                // store local program stack pointer in qvm object for re-entrancy
                 qvm->stackptr = programstack;
 
                 // pass call to game-specific syscall handler which will adjust pointer arguments
                 // and then call the normal QMM syscall entry point so it can be routed to plugins
-                int ret = qvm->vmsyscall(qvm->datasegment, -jump_to - 1, &programstack[2]);
+                int ret = qvm->qvmsyscall(qvm->datasegment, -jump_to - 1, &programstack[2]);
 
-                // stack pointer in qvm object may have changed
+                // program stack pointer in qvm object may have changed if re-entrant
                 programstack = qvm->stackptr;
 
-                // place return value on top of stack like a VM function return value
+                // place return value on top of opstack like a VM function return value
                 QVM_PUSH(ret);
                 break;
             }
@@ -385,173 +392,173 @@ int qvm_exec(qvm_t* qvm, int argc, int* argv) {
             break;
         }
 
-                        // stack opcodes
+        // stack opcodes
 
         case QVM_OP_PUSH:
-            // pushes an unused value onto the stack (mostly for unused return values)
+            // pushes an unused value onto the opstack (mostly for unused return values)
             QVM_PUSH(0);
             break;
 
         case QVM_OP_POP:
-            // pops the top value off the stack (mostly for unused return values)
+            // pops the top value off the opstack (mostly for unused return values)
             QVM_POP();
             break;
 
         case QVM_OP_CONST:
-            // pushes a hardcoded value onto the stack
+            // pushes a hardcoded value onto the opstack
             QVM_PUSH(param);
             break;
 
         case QVM_OP_LOCAL:
-            // pushes a specified local variable address (relative to start of data segment) onto the stack
-            QVM_PUSH((int)((uint8_t*)programstack + param - qvm->datasegment));
+            // pushes a specified local variable address (relative to start of data segment) onto the opstack
+            QVM_PUSH( (int)((uint8_t*)programstack + param - qvm->datasegment) );
             break;
 
-            // branching
+        // branching
 
         case QVM_OP_JUMP:
-            // jump to address in stack[0]
-            QVM_JUMP(stack[0]);
+            // jump to address in opstack[0]
+            QVM_JUMP(opstack[0]);
             QVM_POP();
             break;
 
         case QVM_OP_EQ:
-            // if stack[1] == stack[0], goto address in param
-            QVM_JUMP_SIF(== );
+            // if opstack[1] == opstack[0], goto address in param
+            QVM_JUMP_SIF( == );
             break;
 
         case QVM_OP_NE:
-            // if stack[1] != stack[0], goto address in param
-            QVM_JUMP_SIF(!= );
+            // if opstack[1] != opstack[0], goto address in param
+            QVM_JUMP_SIF( != );
             break;
 
         case QVM_OP_LTI:
-            // if stack[1] < stack[0], goto address in param
-            QVM_JUMP_SIF(< );
+            // if opstack[1] < opstack[0], goto address in param
+            QVM_JUMP_SIF( < );
             break;
 
         case QVM_OP_LEI:
-            // if stack[1] <= stack[0], goto address in param
-            QVM_JUMP_SIF(<= );
+            // if opstack[1] <= opstack[0], goto address in param
+            QVM_JUMP_SIF( <= );
             break;
 
         case QVM_OP_GTI:
-            // if stack[1] > stack[0], goto address in param
-            QVM_JUMP_SIF(> );
+            // if opstack[1] > opstack[0], goto address in param
+            QVM_JUMP_SIF( > );
             break;
 
         case QVM_OP_GEI:
-            // if stack[1] >= stack[0], goto address in param
-            QVM_JUMP_SIF(>= );
+            // if opstack[1] >= opstack[0], goto address in param
+            QVM_JUMP_SIF( >= );
             break;
 
         case QVM_OP_LTU:
-            // if stack[1] < stack[0], goto address in param (unsigned)
-            QVM_JUMP_UIF(< );
+            // if opstack[1] < opstack[0] (unsigned), goto address in param
+            QVM_JUMP_UIF( < );
             break;
 
         case QVM_OP_LEU:
-            // if stack[1] <= stack[0], goto address in param (unsigned)
-            QVM_JUMP_UIF(<= );
+            // if opstack[1] <= opstack[0] (unsigned), goto address in param
+            QVM_JUMP_UIF( <= );
             break;
 
         case QVM_OP_GTU:
-            // if stack[1] > stack[0], goto address in param (unsigned)
-            QVM_JUMP_UIF(> );
+            // if opstack[1] > opstack[0] (unsigned), goto address in param
+            QVM_JUMP_UIF( > );
             break;
 
         case QVM_OP_GEU:
-            // if stack[1] >= stack[0], goto address in param (unsigned)
-            QVM_JUMP_UIF(>= );
+            // if opstack[1] >= opstack[0] (unsigned), goto address in param
+            QVM_JUMP_UIF( >= );
             break;
 
         case QVM_OP_EQF:
-            // if stack[1] == stack[0], goto address in param (float)
-            QVM_JUMP_FIF(== );
+            // if opstack[1] == opstack[0] (float), goto address in param
+            QVM_JUMP_FIF( == );
             break;
 
         case QVM_OP_NEF:
-            // if stack[1] != stack[0], goto address in param (float)
-            QVM_JUMP_FIF(!= );
+            // if opstack[1] != opstack[0] (float), goto address in param
+            QVM_JUMP_FIF( != );
             break;
 
         case QVM_OP_LTF:
-            // if stack[1] < stack[0], goto address in param (float)
-            QVM_JUMP_FIF(< );
+            // if opstack[1] < opstack[0] (float), goto address in param
+            QVM_JUMP_FIF( < );
             break;
 
         case QVM_OP_LEF:
-            // if stack[1] <= stack[0], goto address in param (float)
-            QVM_JUMP_FIF(<= );
+            // if opstack[1] <= opstack[0] (float), goto address in param
+            QVM_JUMP_FIF( <= );
             break;
 
         case QVM_OP_GTF:
-            // if stack[1] > stack[0], goto address in param (float)
-            QVM_JUMP_FIF(> );
+            // if opstack[1] > opstack[0] (float), goto address in param
+            QVM_JUMP_FIF( > );
             break;
 
         case QVM_OP_GEF:
-            // if stack[1] >= stack[0], goto address in param (float)
-            QVM_JUMP_FIF(>= );
+            // if opstack[1] >= opstack[0] (float), goto address in param
+            QVM_JUMP_FIF( >= );
             break;
 
-            // memory/pointer management
+        // memory/pointer management
 
         case QVM_OP_LOAD1: {
-            // get 1-byte value at address stored in stack[0] and store back in stack[0]
-            uint8_t* src = qvm->datasegment + (stack[0] & datamask);
-            stack[0] = (int)*src;
+            // get 1-byte value at address stored in opstack[0] and store back in opstack[0]
+            uint8_t* src = qvm->datasegment + (opstack[0] & datamask);
+            opstack[0] = (int)*src;
             break;
         }
 
         case QVM_OP_LOAD2: {
-            // get 2-byte value at address stored in stack[0] and store back in stack[0]
-            uint16_t* src = (uint16_t*)(qvm->datasegment + (stack[0] & datamask));
-            stack[0] = (int)*src;
+            // get 2-byte value at address stored in opstack[0] and store back in opstack[0]
+            uint16_t* src = (uint16_t*)(qvm->datasegment + (opstack[0] & datamask));
+            opstack[0] = (int)*src;
             break;
         }
 
         case QVM_OP_LOAD4: {
-            // get 4-byte value at address stored in stack[0] and store back in stack[0]
-            int* src = (int*)(qvm->datasegment + (stack[0] & datamask));
-            stack[0] = *src;
+            // get 4-byte value at address stored in opstack[0] and store back in opstack[0]
+            int* src = (int*)(qvm->datasegment + (opstack[0] & datamask));
+            opstack[0] = *src;
             break;
         }
 
         case QVM_OP_STORE1: {
-            // store 1-byte value from stack[0] into address stored in stack[1]
-            uint8_t* dst = qvm->datasegment + (stack[1] & datamask);
-            *dst = (uint8_t)(stack[0] & 0xFF);
+            // store 1-byte value from opstack[0] into address stored in opstack[1]
+            uint8_t* dst = qvm->datasegment + (opstack[1] & datamask);
+            *dst = (uint8_t)(opstack[0] & 0xFF);
             QVM_POPN(2);
             break;
         }
 
         case QVM_OP_STORE2: {
-            // store 2-byte value from stack[0] into address stored in stack[1] 
-            uint16_t* dst = (uint16_t*)(qvm->datasegment + (stack[1] & datamask));
-            *dst = (uint16_t)(stack[0] & 0xFFFF);
+            // store 2-byte value from opstack[0] into address stored in opstack[1] 
+            uint16_t* dst = (uint16_t*)(qvm->datasegment + (opstack[1] & datamask));
+            *dst = (uint16_t)(opstack[0] & 0xFFFF);
             QVM_POPN(2);
             break;
         }
 
         case QVM_OP_STORE4: {
-            // store 4-byte value from stack[0] into address stored in stack[1]
-            int* dst = (int*)(qvm->datasegment + (stack[1] & datamask));
-            *dst = stack[0];
+            // store 4-byte value from opstack[0] into address stored in opstack[1]
+            int* dst = (int*)(qvm->datasegment + (opstack[1] & datamask));
+            *dst = opstack[0];
             QVM_POPN(2);
             break;
         }
 
         case QVM_OP_ARG:
-            // set a function-call arg (offset = param) to the value on top of stack
-            *(int*)((uint8_t*)programstack + param) = stack[0];
+            // set a function-call arg (offset = param) to the value on top of opstack
+            *(int*)((uint8_t*)programstack + param) = opstack[0];
             QVM_POP();
             break;
 
         case QVM_OP_BLOCK_COPY: {
-            // copy mem from address in stack[0] to address in stack[1] for 'param' number of bytes
-            int srci = (stack[0] & datamask);
-            int dsti = (stack[1] & datamask);
+            // copy mem from address in opstack[0] to address in opstack[1] for 'param' number of bytes
+            int srci = (opstack[0] & datamask);
+            int dsti = (opstack[1] & datamask);
 
             QVM_POPN(2);
 
@@ -572,176 +579,176 @@ int qvm_exec(qvm_t* qvm, int argc, int* argv) {
             break;
         }
 
-                              // sign extensions
+        // sign extensions
 
         case QVM_OP_SEX8:
             // 8-bit
-            if (stack[0] & 0x80)
-                stack[0] |= 0xFFFFFF00;
+            if (opstack[0] & 0x80)
+                opstack[0] |= 0xFFFFFF00;
             break;
 
         case QVM_OP_SEX16:
             // 16-bit
-            if (stack[0] & 0x8000)
-                stack[0] |= 0xFFFF0000;
+            if (opstack[0] & 0x8000)
+                opstack[0] |= 0xFFFF0000;
             break;
 
-            // arithmetic/operators
+        // arithmetic/operators
 
         case QVM_OP_NEGI:
             // negation
-            QVM_SSOP(-);
+            QVM_SSOP( - );
             break;
 
         case QVM_OP_ADD:
             // addition
-            QVM_SOP(+= );
+            QVM_SOP( += );
             break;
 
         case QVM_OP_SUB:
             // subtraction
-            QVM_SOP(-= );
+            QVM_SOP( -= );
             break;
 
         case QVM_OP_DIVI:
             // division
-            if (stack[0] == 0) {
-                log_c(QMM_LOG_FATAL, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
+            if (opstack[0] == 0) {
+                log_c(QMM_LOG_FATAL, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
                 goto fail;
             }
-            QVM_SOP(/= );
+            QVM_SOP( /= );
             break;
 
         case QVM_OP_DIVU:
             // unsigned division
-            if (stack[0] == 0) {
-                log_c(QMM_LOG_FATAL, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
+            if (opstack[0] == 0) {
+                log_c(QMM_LOG_FATAL, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
                 goto fail;
             }
-            QVM_UOP(/= );
+            QVM_UOP( /= );
             break;
 
         case QVM_OP_MODI:
             // modulus
-            if (stack[0] == 0) {
-                log_c(QMM_LOG_FATAL, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
+            if (opstack[0] == 0) {
+                log_c(QMM_LOG_FATAL, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
                 goto fail;
             }
-            QVM_SOP(%= );
+            QVM_SOP( %= );
             break;
 
         case QVM_OP_MODU:
             // unsigned modulus
-            if (stack[0] == 0) {
-                log_c(QMM_LOG_FATAL, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
+            if (opstack[0] == 0) {
+                log_c(QMM_LOG_FATAL, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
                 goto fail;
             }
-            QVM_UOP(%= );
+            QVM_UOP( %= );
             break;
 
         case QVM_OP_MULI:
             // multiplication
-            QVM_SOP(*= );
+            QVM_SOP( *= );
             break;
 
         case QVM_OP_MULU:
             // unsigned multiplication
-            QVM_UOP(*= );
+            QVM_UOP( *= );
             break;
 
         case QVM_OP_BAND:
             // bitwise AND
-            QVM_SOP(&= );
+            QVM_SOP( &= );
             break;
 
         case QVM_OP_BOR:
             // bitwise OR
-            QVM_SOP(|= );
+            QVM_SOP( |= );
             break;
 
         case QVM_OP_BXOR:
             // bitwise XOR
-            QVM_SOP(^= );
+            QVM_SOP( ^= );
             break;
 
         case QVM_OP_BCOM:
             // bitwise one's compliment
-            QVM_SSOP(~);
+            QVM_SSOP( ~ );
             break;
 
         case QVM_OP_LSH:
             // unsigned bitwise LEFTSHIFT
-            QVM_UOP(<<= );
+            QVM_UOP( <<= );
             break;
 
         case QVM_OP_RSHI:
             // bitwise RIGHTSHIFT
-            QVM_SOP(>>= );
+            QVM_SOP( >>= );
             break;
 
         case QVM_OP_RSHU:
             // unsigned bitwise RIGHTSHIFT
-            QVM_UOP(>>= );
+            QVM_UOP( >>= );
             break;
 
         case QVM_OP_NEGF:
             // float negation
-            QVM_SFOP(-);
+            QVM_SFOP( - );
             break;
 
         case QVM_OP_ADDF:
             // float addition
-            QVM_FOP(+= );
+            QVM_FOP( += );
             break;
 
         case QVM_OP_SUBF:
             // float subtraction
-            QVM_FOP(-= );
+            QVM_FOP( -= );
             break;
 
         case QVM_OP_DIVF:
             // float division
             // float 0s are all 0 bits but with either sign bit
-            if (stack[0] == 0 || stack[0] == 0x80000000) {
-                log_c(QMM_LOG_FATAL, "SOF2GT_QMM", "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
+            if (opstack[0] == 0 || opstack[0] == 0x80000000) {
+                log_c(QMM_LOG_FATAL, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error at %d: %s division by 0!\n", vmMain_cmd, instr_index, opcodename[op]);
                 goto fail;
             }
-            QVM_FOP(/= );
+            QVM_FOP( /= );
             break;
 
         case QVM_OP_MULF:
             // float multiplication
-            QVM_FOP(*= );
+            QVM_FOP( *= );
             break;
 
-            // format conversion
+        // format conversion
 
         case QVM_OP_CVIF:
-            // convert stack[0] int->float
-            *(float*)&stack[0] = (float)stack[0];
+            // convert opstack[0] int->float
+            *(float*)&opstack[0] = (float)opstack[0];
             break;
 
         case QVM_OP_CVFI:
-            // convert stack[0] float->int
-            stack[0] = (int)*(float*)&stack[0];
+            // convert opstack[0] float->int
+            opstack[0] = (int)*(float*)&opstack[0];
             break;
         } // switch (op)
     } while (opptr);
 
     // compare stored frame size like in QVM_OP_LEAVE
     if (programstack[1] != framesize) {
-        log_c(QMM_LOG_FATAL, "SOF2GT_QMM", "qvm_exec(%d): Runtime error after execution: stack frame size (%d) does not match entry stack frame size (%d)\n", vmMain_cmd, programstack[1], framesize);
+        log_c(QMM_LOG_FATAL, QMM_LOGGING_TAG, "qvm_exec(%d): Runtime error after execution: stack frame size (%d) does not match entry stack frame size (%d)\n", vmMain_cmd, programstack[1], framesize);
         goto fail;
     }
 
     // remove initial stack frame like in QVM_OP_LEAVE
     QVM_STACKFRAME(-framesize);
 
-    // save our local stack pointer back into the qvm object
+    // save our local program stack pointer back into the qvm object
     qvm->stackptr = programstack;
 
-    // return value is stored on the top of the stack (pushed just before QVM_OP_LEAVE)
-    return stack[0];
+    // return value is stored on the top of the opstack (pushed just before QVM_OP_LEAVE)
+    return opstack[0];
 
 fail:
     qvm_unload(qvm);

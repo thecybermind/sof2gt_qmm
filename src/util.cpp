@@ -36,5 +36,5 @@ extern "C" void log_c(int severity, const char* tag, const char* fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, argptr);
     va_end(argptr);
 
-    QMM_WRITEQMMLOG(PLID, buf, severity);
+    QMM_WRITEQMMLOG(buf, severity);
 }

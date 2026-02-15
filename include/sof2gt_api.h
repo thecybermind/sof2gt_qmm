@@ -42,7 +42,7 @@ extern intptr_t SOF2GT_GT_syscall_Post(intptr_t cmd, intptr_t* args);
                                     &SOF2GT_GT_syscall, \
                                     &SOF2GT_GT_syscall_Post, \
                                 }; \
-                                QMM_PLUGIN_SEND(PLID, sof2gt_pluginvars->gt_sof2gt_plid, "SOF2GT_GT_GiveFuncs", &funcs, sizeof(funcs)); \
+                                QMM_PLUGIN_SEND(sof2gt_pluginvars->gt_sof2gt_plid, "SOF2GT_GT_GiveFuncs", &funcs, sizeof(funcs)); \
                             } while(0)
 
 // macros to help set the plugin result value

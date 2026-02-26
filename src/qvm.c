@@ -1,7 +1,7 @@
 /*
-QMM2 - Q3 MultiMod 2
+SoF2GT_QMM - Hook gametype dlls/qvms for Soldier of Fortune 2
 Copyright 2025-2026
-https://github.com/thecybermind/qmm2/
+https://github.com/thecybermind/sof2gt_qmm/
 3-clause BSD license: https://opensource.org/license/bsd-3-clause
 
 Created By:
@@ -19,7 +19,7 @@ Created By:
 #ifdef QMM_LOGGING
 void log_c(int severity, const char* tag, const char* fmt, ...);
 enum { QMM_LOG_TRACE, QMM_LOG_DEBUG, QMM_LOG_INFO, QMM_LOG_NOTICE, QMM_LOG_WARNING, QMM_LOG_ERROR, QMM_LOG_FATAL };
-#define QMM_LOGGING_TAG "QMM"
+#define QMM_LOGGING_TAG "SOF2GT_QMM"
 #else
 #define log_c(...) /* */
 #endif

@@ -17,18 +17,18 @@ Created By:
 #include <cstdint>
 #include <qmmapi.h>
 
-typedef struct sof2gt_pluginvars_s {
+typedef struct {
 	char gt_gametype[32];
-    plid_t gt_sof2gt_plid;
+    plugin_id gt_sof2gt_plid;
 	intptr_t gt_return;
-	pluginres_t gt_result;
-	eng_syscall_t gt_syscall;
-	mod_vmMain_t gt_vmMain;
-} sof2gt_pluginvars_t;
+	plugin_res gt_result;
+	eng_syscall gt_syscall;
+	mod_vmMain gt_vmMain;
+} sof2gt_plugin_vars;
 
-extern sof2gt_pluginvars_t* sof2gt_pluginvars;
+extern sof2gt_plugin_vars* sof2gt_pluginvars;
 
-#define SOF2GT_SAVE_VARS() sof2gt_pluginvars = (sof2gt_pluginvars_t*)buf
+#define SOF2GT_SAVE_VARS() sof2gt_pluginvars = (sof2gt_plugin_vars*)buf
 
 extern intptr_t SOF2GT_GT_vmMain(intptr_t cmd, intptr_t* args);
 extern intptr_t SOF2GT_GT_vmMain_Post(intptr_t cmd, intptr_t* args);

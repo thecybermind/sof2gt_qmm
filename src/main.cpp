@@ -25,8 +25,8 @@ Created By:
 #include "hook.h"
 #include "qvm.h"
 
-pluginres_t* g_result = nullptr;
-plugininfo_t g_plugininfo = {
+plugin_res* g_result = nullptr;
+plugin_info g_plugininfo = {
 	QMM_PIFV_MAJOR,									// plugin interface version major
 	QMM_PIFV_MINOR,									// plugin interface version minor
 	"SoF2GT_QMM",									// name of plugin
@@ -36,14 +36,14 @@ plugininfo_t g_plugininfo = {
 	"https://github.com/thecybermind/sof2gt_qmm/",	// website of plugin
 	"SOF2GT",										// log tag
 };
-eng_syscall_t g_syscall = nullptr;
-mod_vmMain_t g_vmMain = nullptr;
-pluginfuncs_t* g_pluginfuncs = nullptr;
-pluginvars_t* g_pluginvars = nullptr;
+eng_syscall g_syscall = nullptr;
+mod_vmMain g_vmMain = nullptr;
+plugin_funcs* g_pluginfuncs = nullptr;
+plugin_vars* g_pluginvars = nullptr;
 
 // gametype module information
 void* gt_dll = nullptr;
-qvm_t gt_qvm;
+qvm gt_qvm;
 
 // track if we shouldn't load (no plugins or hook failed)
 bool g_disabled = false;
@@ -52,7 +52,7 @@ bool g_disabled = false;
 bool g_shutdown = false;
 
 // stuff to pass to plugins
-static sof2gt_pluginvars_t gt_pluginvars = {
+static sof2gt_plugin_vars gt_pluginvars = {
 	"",			// gt_gametype
 	PLID,		// gt_sof2gt_plid
 	0,			// gt_return
@@ -62,7 +62,7 @@ static sof2gt_pluginvars_t gt_pluginvars = {
 };
 
 // store our plugins
-static std::map<plid_t, sof2gt_plugin_t> s_plugins;
+static std::map<plugin_id, sof2gt_plugin> s_plugins;
 
 // attempt to load DLL gametype mod
 static bool s_load_dll(const char* file);
@@ -70,13 +70,13 @@ static bool s_load_dll(const char* file);
 static bool s_load_qvm(const char* file);
 
 
-C_DLLEXPORT void QMM_Query(plugininfo_t** pinfo) {
+C_DLLEXPORT void QMM_Query(plugin_info** pinfo) {
 	// give QMM our plugin info struct
 	QMM_GIVE_PINFO();
 }
 
 
-C_DLLEXPORT int QMM_Attach(eng_syscall_t engfunc, mod_vmMain_t modfunc, pluginres_t* presult, pluginfuncs_t* pluginfuncs, pluginvars_t* pluginvars) {
+C_DLLEXPORT int QMM_Attach(eng_syscall engfunc, mod_vmMain modfunc, plugin_res* presult, plugin_funcs* pluginfuncs, plugin_vars* pluginvars) {
 	QMM_SAVE_VARS();
 
 	// make sure this DLL is loaded only in the right engine
@@ -164,7 +164,7 @@ C_DLLEXPORT intptr_t QMM_syscall_Post(intptr_t cmd, intptr_t* args) {
 }
 
 
-C_DLLEXPORT void QMM_PluginMessage(plid_t from_plid, const char* message, void* buf, intptr_t buflen, int is_broadcast) {
+C_DLLEXPORT void QMM_PluginMessage(plugin_id from_plid, const char* message, void* buf, intptr_t buflen, int is_broadcast) {
 	if (g_disabled)
 		return;
 
@@ -172,12 +172,12 @@ C_DLLEXPORT void QMM_PluginMessage(plid_t from_plid, const char* message, void* 
 
 	// get sof2gt hook functions from other plugins
 	if (!strcmp(message, "SOF2GT_GT_GiveFuncs")) {
-		if (buflen != NUM_SOF2GT_PLUGIN_FUNCS * sizeof(sof2gt_pluginfunc_t)) {
-			QMM_WRITEQMMLOG(QMM_VARARGS("Unexpected buflen in SOF2GT_GT_GiveFuncs handler: got %d, expected %d\n", buflen, NUM_SOF2GT_PLUGIN_FUNCS * sizeof(sof2gt_pluginfunc_t)), QMMLOG_DEBUG);
+		if (buflen != NUM_SOF2GT_PLUGIN_FUNCS * sizeof(sof2gt_plugin_func)) {
+			QMM_WRITEQMMLOG(QMM_VARARGS("Unexpected buflen in SOF2GT_GT_GiveFuncs handler: got %d, expected %d\n", buflen, NUM_SOF2GT_PLUGIN_FUNCS * sizeof(sof2gt_plugin_func)), QMMLOG_DEBUG);
 			return;
 		}
-		sof2gt_pluginfunc_t* funcs = (sof2gt_pluginfunc_t*)buf;
-		sof2gt_plugin_t plugin = {
+		sof2gt_plugin_func* funcs = (sof2gt_plugin_func*)buf;
+		sof2gt_plugin plugin = {
 			from_plid,
 			funcs[0],
 			funcs[1],
@@ -199,7 +199,7 @@ C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t
 	intptr_t args[] = { arg0, arg1, arg2, arg3, arg4, arg5, arg6 };
 
 	// store max plugin result
-	pluginres_t max_result = QMM_UNUSED;
+	plugin_res max_result = QMM_UNUSED;
 	// return value from plugin call
 	intptr_t plugin_ret = 0;
 	// return value from mod call
@@ -270,7 +270,7 @@ intptr_t SOF2GT_syscall(intptr_t cmd, ...) {
 	va_end(arglist);
 
 	// store max plugin result
-	pluginres_t max_result = QMM_UNUSED;
+	plugin_res max_result = QMM_UNUSED;
 	// return value from plugin call
 	intptr_t plugin_ret = 0;
 	// return value from engine call
@@ -447,7 +447,7 @@ int SOF2GT_qvm_syscall(uint8_t* membase, int cmd, int* args) {
 
 
 // entry point: handle gametype load from engine
-C_DLLEXPORT void dllEntry(eng_syscall_t syscall) {
+C_DLLEXPORT void dllEntry(eng_syscall syscall) {
 	// store gametype syscall from engine
 	gt_pluginvars.gt_syscall = syscall;
 
@@ -471,19 +471,19 @@ C_DLLEXPORT void dllEntry(eng_syscall_t syscall) {
 
 // attempt to load DLL gametype mod
 static bool s_load_dll(const char* file) {
-	mod_dllEntry_t gt_dllEntry;
+	mod_dllEntry gt_dllEntry;
 
 	gt_dll = dlopen(file, RTLD_NOW);
 	if (!gt_dll) {
 		QMM_WRITEQMMLOG(QMM_VARARGS("s_load_dll(\"%s\"): Could not open DLL file for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
 		goto fail;
 	}
-	gt_dllEntry = (mod_dllEntry_t)dlsym(gt_dll, "dllEntry");
+	gt_dllEntry = (mod_dllEntry)dlsym(gt_dll, "dllEntry");
 	if (!gt_dllEntry) {
 		QMM_WRITEQMMLOG(QMM_VARARGS("s_load_dll(\"%s\"): Could not find 'dllEntry' in DLL for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
 		goto fail;
 	}
-	gt_pluginvars.gt_vmMain = (mod_vmMain_t)dlsym(gt_dll, "vmMain");
+	gt_pluginvars.gt_vmMain = (mod_vmMain)dlsym(gt_dll, "vmMain");
 	if (!gt_pluginvars.gt_vmMain) {
 		QMM_WRITEQMMLOG(QMM_VARARGS("s_load_dll(\"%s\"): Could not find 'vmMain' in DLL for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
 		goto fail;

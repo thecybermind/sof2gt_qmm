@@ -24,7 +24,7 @@ Created By:
 // store dll handle for gametype mod
 extern void* gt_dll;
 // qvm virtual machine
-extern qvm_t gt_qvm;
+extern qvm gt_qvm;
 
 // track if we shouldn't load (no plugins or hook failed)
 extern bool g_disabled;
@@ -33,14 +33,14 @@ extern bool g_disabled;
 extern bool g_shutdown;
 
 // plugin stuff
-typedef intptr_t (*sof2gt_pluginfunc_t)(intptr_t cmd, intptr_t* args);
-typedef struct sof2gt_plugin_s {
-    plid_t plid;
-    sof2gt_pluginfunc_t SOF2GT_GT_vmMain;
-    sof2gt_pluginfunc_t SOF2GT_GT_vmMain_Post;
-    sof2gt_pluginfunc_t SOF2GT_GT_syscall;
-    sof2gt_pluginfunc_t SOF2GT_GT_syscall_Post;
-} sof2gt_plugin_t;
+typedef intptr_t (*sof2gt_plugin_func)(intptr_t cmd, intptr_t* args);
+typedef struct {
+    plugin_id plid;
+    sof2gt_plugin_func SOF2GT_GT_vmMain;
+    sof2gt_plugin_func SOF2GT_GT_vmMain_Post;
+    sof2gt_plugin_func SOF2GT_GT_syscall;
+    sof2gt_plugin_func SOF2GT_GT_syscall_Post;
+} sof2gt_plugin;
 
 // handle syscall from gametype mod (DLL or QVM)
 intptr_t SOF2GT_syscall(intptr_t cmd, ...);

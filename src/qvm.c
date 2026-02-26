@@ -792,7 +792,7 @@ fail:
 
 
 // return a string name for the VM opcode
-static const char* qvm_opcodename[] = {
+const char* qvm_opcodename[] = {
     "QVM_OP_UNDEF",
     "QVM_OP_NOP",
     "QVM_OP_BREAK",

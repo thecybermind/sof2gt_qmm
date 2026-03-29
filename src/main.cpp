@@ -96,7 +96,7 @@ C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
 		QMM_RET_IGNORED(0);
 
 	if (cmd == GAME_INIT) {
-		QMM_WRITEQMMLOG("SoF2GT loaded!\n", QMMLOG_NOTICE);
+		QMM_WRITEQMMLOG(QMMLOG_NOTICE, "SoF2GT loaded!\n");
 
 		// pass gt plugin variables to plugins
 		QMM_PLUGIN_BROADCAST("SOF2GT_Attach", &gt_pluginvars, sizeof(gt_pluginvars));
@@ -104,10 +104,10 @@ C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
 		// if we didn't attach to any plugins, then disable ourselves
 		if (s_plugins.empty()) {
 			g_disabled = true;
-			QMM_WRITEQMMLOG("No SoF2GT plugins found, disabling!\n", QMMLOG_INFO);
+			QMM_WRITEQMMLOG(QMMLOG_INFO, "No SoF2GT plugins found, disabling!\n");
 		}
 		else {
-			QMM_WRITEQMMLOG(QMM_VARARGS("%d SoF2GT plugin(s) found!\n", s_plugins.size()), QMMLOG_INFO);
+			QMM_WRITEQMMLOG(QMMLOG_INFO, "%d SoF2GT plugin(s) found!\n", s_plugins.size());
 		}
 	}
 	else if (cmd == GAME_SHUTDOWN) {
@@ -134,11 +134,11 @@ C_DLLEXPORT intptr_t QMM_syscall(intptr_t cmd, intptr_t* args) {
 		// if cannot install hook, then disable ourselves
 		if (!hook_enable(gt_pluginvars.gt_gametype)) {
 			g_disabled = true;
-			QMM_WRITEQMMLOG("Failed to install GetProcAddress/dlopen hook, disabling!\n", QMMLOG_NOTICE);
+			QMM_WRITEQMMLOG(QMMLOG_NOTICE, "Failed to install GetProcAddress/dlopen hook, disabling!\n");
 
 			QMM_RET_IGNORED(0);
 		}
-		QMM_WRITEQMMLOG("Hook installed for gametype module!\n", QMMLOG_INFO);
+		QMM_WRITEQMMLOG(QMMLOG_INFO, "Hook installed for gametype module!\n");
 	}
 
 	QMM_RET_IGNORED(0);
@@ -158,7 +158,7 @@ C_DLLEXPORT intptr_t QMM_syscall_Post(intptr_t cmd, intptr_t* args) {
 	if (cmd == G_GT_INIT) {
 		// unload hook
 		if (hook_disable())
-			QMM_WRITEQMMLOG("Hook uninstalled for gametype module!\n", QMMLOG_INFO);
+			QMM_WRITEQMMLOG(QMMLOG_INFO, "Hook uninstalled for gametype module!\n");
 	}
 	QMM_RET_IGNORED(0);
 }
@@ -173,7 +173,7 @@ C_DLLEXPORT void QMM_PluginMessage(plugin_id from_plid, const char* message, voi
 	// get sof2gt hook functions from other plugins
 	if (!strcmp(message, "SOF2GT_GT_GiveFuncs")) {
 		if (buflen != NUM_SOF2GT_PLUGIN_FUNCS * sizeof(sof2gt_plugin_func)) {
-			QMM_WRITEQMMLOG(QMM_VARARGS("Unexpected buflen in SOF2GT_GT_GiveFuncs handler: got %d, expected %d\n", buflen, NUM_SOF2GT_PLUGIN_FUNCS * sizeof(sof2gt_plugin_func)), QMMLOG_DEBUG);
+			QMM_WRITEQMMLOG(QMMLOG_DEBUG, "Unexpected buflen in SOF2GT_GT_GiveFuncs handler: got %d, expected %d\n", buflen, NUM_SOF2GT_PLUGIN_FUNCS * sizeof(sof2gt_plugin_func));
 			return;
 		}
 		sof2gt_plugin_func* funcs = (sof2gt_plugin_func*)buf;
@@ -193,7 +193,7 @@ C_DLLEXPORT void QMM_PluginMessage(plugin_id from_plid, const char* message, voi
 // entry point: handle gametype vmMain calls from engine
 C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6) {
 	if (cmd == GAMETYPE_INIT) {
-		QMM_WRITEQMMLOG(QMM_VARARGS("Gametype '%s' initialized!\n", gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
+		QMM_WRITEQMMLOG(QMMLOG_NOTICE, "Gametype '%s' initialized!\n", gt_pluginvars.gt_gametype);
 	}
 
 	intptr_t args[] = { arg0, arg1, arg2, arg3, arg4, arg5, arg6 };
@@ -337,7 +337,7 @@ intptr_t SOFT2GT_qvm_vmmain(intptr_t cmd, ...) {
 	if (!gt_qvm.memory) {
 		if (!g_shutdown) {
 			g_shutdown = true;
-			QMM_WRITEQMMLOG(QMM_VARARGS("SOFT2GT_qvm_vmmain(%d): QVM unloaded during previous execution due to a run-time error\n", cmd), QMMLOG_FATAL);
+			QMM_WRITEQMMLOG(QMMLOG_FATAL, "SOFT2GT_qvm_vmmain(%d): QVM unloaded during previous execution due to a run-time error\n", cmd);
 			g_syscall(G_ERROR, "\n\n=========\nFatal SOFT2GT Error:\nThe QVM was unloaded during previous execution due to a run-time error.\n=========\n");
 		}
 		return 0;
@@ -451,7 +451,7 @@ C_DLLEXPORT void dllEntry(eng_syscall syscall) {
 	// store gametype syscall from engine
 	gt_pluginvars.gt_syscall = syscall;
 
-	QMM_WRITEQMMLOG(QMM_VARARGS("Gametype hook DLL loaded for gametype '%s'\n", gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
+	QMM_WRITEQMMLOG(QMMLOG_NOTICE, "Gametype hook DLL loaded for gametype '%s'\n", gt_pluginvars.gt_gametype);
 
 	// load gametype mod file
 	const char* modpath = QMM_VARARGS("base/mp/qmm_gt_%sx86.dll", gt_pluginvars.gt_gametype);
@@ -465,7 +465,7 @@ C_DLLEXPORT void dllEntry(eng_syscall syscall) {
 		}
 	}
 
-	QMM_WRITEQMMLOG(QMM_VARARGS("Successfully loaded %s for gametype '%s'\n", (gt_dll ? "DLL" : "QVM"), gt_pluginvars.gt_gametype), QMMLOG_NOTICE);
+	QMM_WRITEQMMLOG(QMMLOG_NOTICE, "Successfully loaded %s for gametype '%s'\n", (gt_dll ? "DLL" : "QVM"), gt_pluginvars.gt_gametype);
 }
 
 
@@ -475,17 +475,17 @@ static bool s_load_dll(const char* file) {
 
 	gt_dll = dlopen(file, RTLD_NOW);
 	if (!gt_dll) {
-		QMM_WRITEQMMLOG(QMM_VARARGS("s_load_dll(\"%s\"): Could not open DLL file for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
+		QMM_WRITEQMMLOG(QMMLOG_DEBUG, "s_load_dll(\"%s\"): Could not open DLL file for gametype '%s'\n", file, gt_pluginvars.gt_gametype);
 		goto fail;
 	}
 	gt_dllEntry = (mod_dllEntry)dlsym(gt_dll, "dllEntry");
 	if (!gt_dllEntry) {
-		QMM_WRITEQMMLOG(QMM_VARARGS("s_load_dll(\"%s\"): Could not find 'dllEntry' in DLL for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
+		QMM_WRITEQMMLOG(QMMLOG_DEBUG, "s_load_dll(\"%s\"): Could not find 'dllEntry' in DLL for gametype '%s'\n", file, gt_pluginvars.gt_gametype);
 		goto fail;
 	}
 	gt_pluginvars.gt_vmMain = (mod_vmMain)dlsym(gt_dll, "vmMain");
 	if (!gt_pluginvars.gt_vmMain) {
-		QMM_WRITEQMMLOG(QMM_VARARGS("s_load_dll(\"%s\"): Could not find 'vmMain' in DLL for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
+		QMM_WRITEQMMLOG(QMMLOG_DEBUG, "s_load_dll(\"%s\"): Could not find 'vmMain' in DLL for gametype '%s'\n", file, gt_pluginvars.gt_gametype);
 		goto fail;
 	}
 
@@ -512,7 +512,7 @@ static bool s_load_qvm(const char* file) {
 	// load file using engine functions to read into pk3s if necessary
 	filelen = g_syscall(G_FS_FOPEN_FILE, file, &fpk3, FS_READ);
 	if (filelen <= 0) {
-		QMM_WRITEQMMLOG(QMM_VARARGS("s_load_qvm(\"%s\"): Could not open QVM for reading for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
+		QMM_WRITEQMMLOG(QMMLOG_DEBUG, "s_load_qvm(\"%s\"): Could not open QVM for reading for gametype '%s'\n", file, gt_pluginvars.gt_gametype);
 		g_syscall(G_FS_FCLOSE_FILE, fpk3);
 		goto fail;
 	}
@@ -524,7 +524,7 @@ static bool s_load_qvm(const char* file) {
 	// attempt to load mod
 	loaded = qvm_load(&gt_qvm, filemem, filelen, SOF2GT_qvm_syscall, true, nullptr);	// true = verify_data
 	if (!loaded) {
-		QMM_WRITEQMMLOG(QMM_VARARGS("s_load_qvm(\"%s\"): QVM load failed for gametype '%s'\n", file, gt_pluginvars.gt_gametype), QMMLOG_DEBUG);
+		QMM_WRITEQMMLOG(QMMLOG_DEBUG, "s_load_qvm(\"%s\"): QVM load failed for gametype '%s'\n", file, gt_pluginvars.gt_gametype);
 		goto fail;
 	}
 

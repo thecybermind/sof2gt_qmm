@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug-SOF2MP|Win32">
-      <Configuration>Debug-SOF2MP</Configuration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Release-SOF2MP|Win32">
-      <Configuration>Release-SOF2MP</Configuration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
@@ -65,11 +65,11 @@
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <ExternalIncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</ExternalIncludePath>
   </PropertyGroup>
-  <PropertyGroup Condition="$(Platform)=='Win32' And $(Configuration.EndsWith('-SOF2MP'))==true">
-    <TargetName>$(ProjectName)_SOF2MP</TargetName>
+  <PropertyGroup Condition="$(Platform)=='Win32'">
+    <TargetName>$(ProjectName)</TargetName>
   </PropertyGroup>
-  <PropertyGroup Condition="$(Platform)=='x64' And $(Configuration.EndsWith('-SOF2MP'))==true">
-    <TargetName>$(ProjectName)_x86_64_SOF2MP</TargetName>
+  <PropertyGroup Condition="$(Platform)=='x64'">
+    <TargetName>$(ProjectName)_x86_64</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -109,11 +109,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="$(Configuration.EndsWith('-SOF2MP'))==true">
-    <ClCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);GAME_SOF2MP</PreprocessorDefinitions>
-    </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

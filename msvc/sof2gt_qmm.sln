@@ -7,14 +7,14 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sof2gt_qmm", "sof2gt_qmm.vc
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug-SOF2MP|x86 = Debug-SOF2MP|x86
-		Release-SOF2MP|x86 = Release-SOF2MP|x86
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Debug-SOF2MP|x86.ActiveCfg = Debug-SOF2MP|Win32
-		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Debug-SOF2MP|x86.Build.0 = Debug-SOF2MP|Win32
-		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Release-SOF2MP|x86.ActiveCfg = Release-SOF2MP|Win32
-		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Release-SOF2MP|x86.Build.0 = Release-SOF2MP|Win32
+		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Debug|x86.ActiveCfg = Debug|Win32
+		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Debug|x86.Build.0 = Debug|Win32
+		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Release|x86.ActiveCfg = Release|Win32
+		{1D5BE629-82D1-4511-8559-5116BFE4338C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

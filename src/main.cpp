@@ -25,7 +25,6 @@ Created By:
 #include "hook.h"
 #include "qvm.h"
 
-plugin_res* g_result = nullptr;
 plugin_info g_plugininfo = {
 	QMM_PIFV_MAJOR,									// plugin interface version major
 	QMM_PIFV_MINOR,									// plugin interface version minor
@@ -37,7 +36,9 @@ plugin_info g_plugininfo = {
 	"SOF2GT",										// log tag
 };
 eng_syscall g_syscall = nullptr;
+eng_syscall_args g_syscall_args = nullptr;
 mod_vmMain g_vmMain = nullptr;
+mod_vmMain_args g_vmMain_args = nullptr;
 plugin_funcs* g_pluginfuncs = nullptr;
 plugin_vars* g_pluginvars = nullptr;
 
@@ -76,12 +77,14 @@ C_DLLEXPORT void QMM_Query(plugin_info** pinfo) {
 }
 
 
-C_DLLEXPORT int QMM_Attach(eng_syscall engfunc, mod_vmMain modfunc, plugin_res* presult, plugin_funcs* pluginfuncs, plugin_vars* pluginvars) {
+C_DLLEXPORT int QMM_Attach(eng_syscall engfunc, eng_syscall_args engfunc_args, mod_vmMain modfunc, mod_vmMain_args modfunc_args, plugin_funcs* pluginfuncs, plugin_vars* pluginvars) {
 	QMM_SAVE_VARS();
 
 	// make sure this DLL is loaded only in the right engine
-	if (strcmp(QMM_GETGAMEENGINE(), GAME_STR) != 0)
+	if (strcmp(QMM_GETGAMEENGINE(), "SOF2MP") != 0) {
+		QMM_WRITEQMMLOG(QMMLOG_ERROR, "SoF2GT_QMM only works with Soldier of Fortune 2 Multiplayer!\n");
 		return 0;
+	}
 
 	return 1;
 }
@@ -91,7 +94,7 @@ C_DLLEXPORT void QMM_Detach() {
 }
 
 
-C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
+C_DLLEXPORT intptr_t QMM_vmMain(result_vars* results, intptr_t cmd, intptr_t* args) {
 	if (g_disabled)
 		QMM_RET_IGNORED(0);
 
@@ -120,7 +123,7 @@ C_DLLEXPORT intptr_t QMM_vmMain(intptr_t cmd, intptr_t* args) {
 }
 
 
-C_DLLEXPORT intptr_t QMM_syscall(intptr_t cmd, intptr_t* args) {
+C_DLLEXPORT intptr_t QMM_syscall(result_vars* results, intptr_t cmd, intptr_t* args) {
 	if (g_disabled)
 		QMM_RET_IGNORED(0);
 
@@ -145,12 +148,12 @@ C_DLLEXPORT intptr_t QMM_syscall(intptr_t cmd, intptr_t* args) {
 }
 
 
-C_DLLEXPORT intptr_t QMM_vmMain_Post(intptr_t cmd, intptr_t* args) {
+C_DLLEXPORT intptr_t QMM_vmMain_Post(result_vars* results, intptr_t cmd, intptr_t* args) {
 	QMM_RET_IGNORED(0);
 }
 
 
-C_DLLEXPORT intptr_t QMM_syscall_Post(intptr_t cmd, intptr_t* args) {
+C_DLLEXPORT intptr_t QMM_syscall_Post(result_vars* results, intptr_t cmd, intptr_t* args) {
 	if (g_disabled)
 		QMM_RET_IGNORED(0);
 

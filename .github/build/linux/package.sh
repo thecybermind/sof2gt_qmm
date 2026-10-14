@@ -5,8 +5,6 @@ rm -f *
 cp ../README.md ./
 cp ../LICENSE ./
 
-#for f in SOF2MP; do
-#  cp ../bin/release-$f/x86/sof2gt_qmm_$f.so ./
-#done
+cp ../bin/release/x86/sof2gt_qmm.so ./
 
 cd ..

@@ -35,7 +35,7 @@ extern intptr_t SOF2GT_GT_syscall(result_vars* results, intptr_t cmd, intptr_t* 
 extern intptr_t SOF2GT_GT_syscall_Post(result_vars* results, intptr_t cmd, intptr_t* args);
 
 #define SOF2GT_GIVE_FUNCS() do { \
-                                intptr_t(*funcs[])(intptr_t cmd, intptr_t* args) = { \
+                                intptr_t(*funcs[])(result_vars* results, intptr_t cmd, intptr_t* args) = { \
                                     &SOF2GT_GT_vmMain, \
                                     &SOF2GT_GT_vmMain_Post, \
                                     &SOF2GT_GT_syscall, \
@@ -45,12 +45,11 @@ extern intptr_t SOF2GT_GT_syscall_Post(result_vars* results, intptr_t cmd, intpt
                             } while(0)
 
 // macros to help set the plugin result value
-#define SOF2GT_SET_RESULT(res)    results->gt_result = (plugin_res)(res)
+#define SOF2GT_SET_RESULT(res)    results->result = (plugin_res)(res)
 #define SOF2GT_RETURN(res, ret)   return (SOF2GT_SET_RESULT(res), (ret))
 #define SOF2GT_RET_ERROR(ret)     SOF2GT_RETURN(QMM_ERROR, (ret))
 #define SOF2GT_RET_IGNORED(ret)	  SOF2GT_RETURN(QMM_IGNORED, (ret))
 #define SOF2GT_RET_OVERRIDE(ret)  SOF2GT_RETURN(QMM_OVERRIDE, (ret))
 #define SOF2GT_RET_SUPERCEDE(ret) SOF2GT_RETURN(QMM_SUPERCEDE, (ret))
-
 
 #endif // SOF2GT_QMM_SOF2GT_API_H

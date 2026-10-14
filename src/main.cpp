@@ -57,7 +57,6 @@ static sof2gt_plugin_vars gt_pluginvars = {
 	"",			// gt_gametype
 	PLID,		// gt_sof2gt_plid
 	0,			// gt_return
-	QMM_UNUSED,	// gt_result
 	nullptr,	// gt_syscall
 	nullptr,	// gt_vmMain
 };
@@ -201,13 +200,13 @@ C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t
 
 	intptr_t args[] = { arg0, arg1, arg2, arg3, arg4, arg5, arg6 };
 
-	// store max plugin result
-	plugin_res max_result = QMM_UNUSED;
-	// return value from plugin call
+	// store high result
+	plugin_res high_res = QMM_UNUSED;
+	// return values from a plugin call
 	intptr_t plugin_ret = 0;
-	// return value from mod call
-	intptr_t mod_ret = 0;
-	// return value to pass back to the engine (either mod_ret, or a plugin_ret from QMM_OVERRIDE/QMM_SUPERCEDE result)
+	// return value from real call
+	intptr_t real_ret = 0;
+	// return value to pass back to the caller (either real_ret, or a plugin_ret from QMM_OVERRIDE/QMM_SUPERCEDE result)
 	intptr_t final_ret = 0;
 
 	// begin passing calls to plugins' SOF2GT_GT_vmMain functions
@@ -216,27 +215,32 @@ C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t
 		if (!p.second.SOF2GT_GT_vmMain)
 			continue;
 
-		gt_pluginvars.gt_result = QMM_UNUSED;
+		result_vars results = {
+			QMM_UNUSED,         // result
+			high_res,           // high_result
+			final_ret,          // final_return
+			real_ret,           // real_return
+		};
 
 		// call plugin's GT_vmMain and store return value
-		plugin_ret = p.second.SOF2GT_GT_vmMain(cmd, args);
+		plugin_ret = p.second.SOF2GT_GT_vmMain(&results, cmd, args);
 
 		// set new max result
-		if (gt_pluginvars.gt_result > max_result)
-			max_result = gt_pluginvars.gt_result;
+		if (results.result > high_res)
+			high_res = results.result;
 
 		// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
-		if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
+		if (results.result >= QMM_OVERRIDE)
 			final_ret = plugin_ret;
 	}
 
 	// call real vmMain function (unless a plugin resulted in QMM_SUPERCEDE)
-	if (gt_pluginvars.gt_result < QMM_SUPERCEDE)
-		mod_ret = gt_pluginvars.gt_vmMain(cmd, args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+	if (high_res < QMM_SUPERCEDE)
+		real_ret = gt_pluginvars.gt_vmMain(cmd, args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
 
 	// if no plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, return the actual mod's return value back to the engine
-	if (gt_pluginvars.gt_result < QMM_OVERRIDE)
-		final_ret = mod_ret;
+	if (high_res < QMM_OVERRIDE)
+		final_ret = real_ret;
 
 	// begin passing calls to plugins' SOF2GT_GT_vmMain_Post functions
 	for (auto& p : s_plugins) {
@@ -244,19 +248,20 @@ C_DLLEXPORT intptr_t vmMain(intptr_t cmd, intptr_t arg0, intptr_t arg1, intptr_t
 		if (!p.second.SOF2GT_GT_vmMain_Post)
 			continue;
 
-		gt_pluginvars.gt_result = QMM_UNUSED;
+		result_vars results = {
+			QMM_UNUSED,         // result
+			high_res,           // high_result
+			final_ret,          // final_return
+			real_ret,           // real_return
+		};
 
 		// call plugin's GT_vmMain_Post and store return value
-		plugin_ret = p.second.SOF2GT_GT_vmMain_Post(cmd, args);
+		plugin_ret = p.second.SOF2GT_GT_vmMain_Post(&results, cmd, args);
 
 		// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
-		if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
+		if (results.result >= QMM_OVERRIDE)
 			final_ret = plugin_ret;
 	}
-
-	// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
-	if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
-		final_ret = gt_pluginvars.gt_return;
 
 	return final_ret;
 }
@@ -272,13 +277,13 @@ intptr_t SOF2GT_syscall(intptr_t cmd, ...) {
 		args[i] = va_arg(arglist, intptr_t);
 	va_end(arglist);
 
-	// store max plugin result
-	plugin_res max_result = QMM_UNUSED;
-	// return value from plugin call
+	// store high result
+	plugin_res high_res = QMM_UNUSED;
+	// return values from a plugin call
 	intptr_t plugin_ret = 0;
-	// return value from engine call
-	intptr_t eng_ret = 0;
-	// return value to pass back to the mod (either eng_ret, or a plugin_ret from QMM_OVERRIDE/QMM_SUPERCEDE result)
+	// return value from real call
+	intptr_t real_ret = 0;
+	// return value to pass back to the caller (either real_ret, or a plugin_ret from QMM_OVERRIDE/QMM_SUPERCEDE result)
 	intptr_t final_ret = 0;
 
 	// begin passing calls to plugins' SOF2GT_GT_syscall functions
@@ -287,27 +292,32 @@ intptr_t SOF2GT_syscall(intptr_t cmd, ...) {
 		if (!p.second.SOF2GT_GT_syscall)
 			continue;
 
-		gt_pluginvars.gt_result = QMM_UNUSED;
+		result_vars results = {
+			QMM_UNUSED,         // result
+			high_res,           // high_result
+			final_ret,          // final_return
+			real_ret,           // real_return
+		};
 
 		// call plugin's GT_syscall and store return value
-		plugin_ret = p.second.SOF2GT_GT_syscall(cmd, args);
+		plugin_ret = p.second.SOF2GT_GT_syscall(&results, cmd, args);
 
 		// set new max result
-		if (gt_pluginvars.gt_result > max_result)
-			max_result = gt_pluginvars.gt_result;
+		if (results.result > high_res)
+			high_res = results.result;
 
 		// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
-		if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
+		if (results.result >= QMM_OVERRIDE)
 			final_ret = plugin_ret;
 	}
 
 	// call real syscall function (unless a plugin resulted in QMM_SUPERCEDE)
-	if (gt_pluginvars.gt_result < QMM_SUPERCEDE)
-		eng_ret = gt_pluginvars.gt_syscall(cmd, args[0], args[1], args[2], args[3], args[4], args[5]);
+	if (high_res < QMM_SUPERCEDE)
+		real_ret = gt_pluginvars.gt_syscall(cmd, args[0], args[1], args[2], args[3], args[4], args[5]);
 
 	// if no plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, return the actual mod's return value back to the engine
-	if (gt_pluginvars.gt_result < QMM_OVERRIDE)
-		final_ret = eng_ret;
+	if (high_res < QMM_OVERRIDE)
+		final_ret = real_ret;
 
 	// begin passing calls to plugins' SOF2GT_GT_syscall_Post functions
 	for (auto& p : s_plugins) {
@@ -315,19 +325,20 @@ intptr_t SOF2GT_syscall(intptr_t cmd, ...) {
 		if (!p.second.SOF2GT_GT_syscall_Post)
 			continue;
 
-		gt_pluginvars.gt_result = QMM_UNUSED;
+		result_vars results = {
+			QMM_UNUSED,         // result
+			high_res,           // high_result
+			final_ret,          // final_return
+			real_ret,           // real_return
+		};
 
 		// call plugin's GT_syscall_Post and store return value
-		plugin_ret = p.second.SOF2GT_GT_syscall_Post(cmd, args);
+		plugin_ret = p.second.SOF2GT_GT_syscall_Post(&results, cmd, args);
 
 		// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
-		if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
+		if (results.result >= QMM_OVERRIDE)
 			final_ret = plugin_ret;
 	}
-
-	// if plugin resulted in QMM_OVERRIDE or QMM_SUPERCEDE, set final_ret to this return value
-	if (gt_pluginvars.gt_result >= QMM_OVERRIDE)
-		final_ret = gt_pluginvars.gt_return;
 
 	return final_ret;
 }

@@ -138,7 +138,6 @@ static void* s_proc_handle = nullptr;
 bool hook_enable(const char* gametype) {
     s_gametype = gametype;
 
-    static char path[PATH_MAX];
     // get our file path
     Dl_info dli;
     memset(&dli, 0, sizeof(dli));

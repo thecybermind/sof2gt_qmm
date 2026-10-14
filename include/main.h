@@ -33,7 +33,7 @@ extern bool g_disabled;
 extern bool g_shutdown;
 
 // plugin stuff
-typedef intptr_t (*sof2gt_plugin_func)(intptr_t cmd, intptr_t* args);
+typedef intptr_t (*sof2gt_plugin_func)(result_vars* results, intptr_t cmd, intptr_t* args);
 typedef struct {
     plugin_id plid;
     sof2gt_plugin_func SOF2GT_GT_vmMain;

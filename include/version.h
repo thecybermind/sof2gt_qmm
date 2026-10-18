@@ -1,5 +1,5 @@
 /*
-SoF2GT_QMM - Hook gametype dlls/qvms for Soldier of Fortune 2
+SoF2GT - Hook gametype dlls/qvms for Soldier of Fortune 2
 Copyright 2025-2026
 https://github.com/thecybermind/sof2gt_qmm/
 3-clause BSD license: https://opensource.org/license/bsd-3-clause
@@ -19,21 +19,21 @@ Created By:
 #define SOF2GT_QMM_VERSION_MINOR	7
 #define SOF2GT_QMM_VERSION_REV	    0
 
-#define SOF2GT_QMM_VERSION		STRINGIFY(SOF2GT_QMM_VERSION_MAJOR) "." STRINGIFY(SOF2GT_QMM_VERSION_MINOR) "." STRINGIFY(SOF2GT_QMM_VERSION_REV)
+#define SOF2GT_QMM_VERSION          STRINGIFY(SOF2GT_QMM_VERSION_MAJOR) "." STRINGIFY(SOF2GT_QMM_VERSION_MINOR) "." STRINGIFY(SOF2GT_QMM_VERSION_REV)
 
 #if defined(_WIN32)
-#define SOF2GT_QMM_OS             "Windows"
+#define SOF2GT_QMM_OS               "Windows"
 #ifdef _WIN64
-#define SOF2GT_QMM_ARCH           "x86_64"
+#define SOF2GT_QMM_ARCH             "x86_64"
 #else
-#define SOF2GT_QMM_ARCH           "x86"
+#define SOF2GT_QMM_ARCH             "x86"
 #endif
 #elif defined(__linux__)
-#define SOF2GT_QMM_OS             "Linux"
+#define SOF2GT_QMM_OS               "Linux"
 #ifdef __LP64__
-#define SOF2GT_QMM_ARCH           "x86_64"
+#define SOF2GT_QMM_ARCH             "x86_64"
 #else
-#define SOF2GT_QMM_ARCH           "x86"
+#define SOF2GT_QMM_ARCH             "x86"
 #endif
 #endif
 

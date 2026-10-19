@@ -28,19 +28,15 @@ Created By:
 plugin_info g_plugininfo = {
 	QMM_PIFV_MAJOR,									// plugin interface version major
 	QMM_PIFV_MINOR,									// plugin interface version minor
-	"SoF2GT_QMM",									// name of plugin
+	"SoF2GT",									    // name of plugin
 	SOF2GT_QMM_VERSION,								// version of plugin
 	"Hook SoF2MP's gametype qvms",					// description of plugin
 	SOF2GT_QMM_BUILDER,								// author of plugin
 	"https://github.com/thecybermind/sof2gt_qmm/",	// website of plugin
 	"SOF2GT",										// log tag
 };
-eng_syscall g_syscall = nullptr;
-eng_syscall_args g_syscall_args = nullptr;
-mod_vmMain g_vmMain = nullptr;
-mod_vmMain_args g_vmMain_args = nullptr;
-plugin_funcs* g_pluginfuncs = nullptr;
-plugin_vars* g_pluginvars = nullptr;
+plugin_funcs g_pluginfuncs;
+plugin_vars g_pluginvars;
 
 // gametype module information
 void* gt_dll = nullptr;
@@ -70,15 +66,12 @@ static bool s_load_dll(const char* file);
 static bool s_load_qvm(const char* file);
 
 
-C_DLLEXPORT void QMM_Query(plugin_info** pinfo) {
-	// give QMM our plugin info struct
-	QMM_GIVE_PINFO();
+C_DLLEXPORT void QMM_Query(plugin_info** plugininfo, plugin_funcs** pluginfuncs, plugin_vars** pluginvars) {
+	QMM_GIVE_PTRS();
 }
 
 
-C_DLLEXPORT int QMM_Attach(eng_syscall engfunc, eng_syscall_args engfunc_args, mod_vmMain modfunc, mod_vmMain_args modfunc_args, plugin_funcs* pluginfuncs, plugin_vars* pluginvars) {
-	QMM_SAVE_VARS();
-
+C_DLLEXPORT int QMM_Attach() {
 	// make sure this DLL is loaded only in the right engine
 	if (strcmp(QMM_GETGAMEENGINE(), "SOF2MP") != 0) {
 		QMM_WRITEQMMLOG(QMMLOG_ERROR, "SoF2GT_QMM only works with Soldier of Fortune 2 Multiplayer!\n");
@@ -352,7 +345,7 @@ intptr_t SOFT2GT_qvm_vmmain(intptr_t cmd, ...) {
 		if (!g_shutdown) {
 			g_shutdown = true;
 			QMM_WRITEQMMLOG(QMMLOG_FATAL, "SOFT2GT_qvm_vmmain(%d): QVM unloaded during previous execution due to a run-time error\n", cmd);
-			g_syscall(G_ERROR, "\n\n=========\nFatal SOFT2GT Error:\nThe QVM was unloaded during previous execution due to a run-time error.\n=========\n");
+			QMM_SYSCALL(G_ERROR, "\n\n=========\nFatal SOFT2GT Error:\nThe QVM was unloaded during previous execution due to a run-time error.\n=========\n");
 		}
 		return 0;
 	}
@@ -474,7 +467,7 @@ C_DLLEXPORT void dllEntry(eng_syscall syscall) {
 		if (!s_load_qvm(modpath)) {
 			// unfortunately at this point, we can't back out safely, so G_ERROR it is
 			g_shutdown = true;
-			g_syscall(G_ERROR, QMM_VARARGS("Could not load DLL or QVM for gametype '%s'\n", gt_pluginvars.gt_gametype));
+			QMM_SYSCALL(G_ERROR, QMM_VARARGS("Could not load DLL or QVM for gametype '%s'\n", gt_pluginvars.gt_gametype));
 			return;
 		}
 	}
@@ -524,16 +517,16 @@ static bool s_load_qvm(const char* file) {
 	int loaded;
 
 	// load file using engine functions to read into pk3s if necessary
-	filelen = g_syscall(G_FS_FOPEN_FILE, file, &fpk3, FS_READ);
+	filelen = QMM_SYSCALL(G_FS_FOPEN_FILE, file, &fpk3, FS_READ);
 	if (filelen <= 0) {
 		QMM_WRITEQMMLOG(QMMLOG_DEBUG, "s_load_qvm(\"%s\"): Could not open QVM for reading for gametype '%s'\n", file, gt_pluginvars.gt_gametype);
-		g_syscall(G_FS_FCLOSE_FILE, fpk3);
+		QMM_SYSCALL(G_FS_FCLOSE_FILE, fpk3);
 		goto fail;
 	}
 	filemem = (uint8_t*)malloc(filelen);
 
-	g_syscall(G_FS_READ, filemem, filelen, fpk3);
-	g_syscall(G_FS_FCLOSE_FILE, fpk3);
+	QMM_SYSCALL(G_FS_READ, filemem, filelen, fpk3);
+	QMM_SYSCALL(G_FS_FCLOSE_FILE, fpk3);
 
 	// attempt to load mod
 	loaded = qvm_load(&gt_qvm, filemem, filelen, SOF2GT_qvm_syscall, true, nullptr);	// true = verify_data

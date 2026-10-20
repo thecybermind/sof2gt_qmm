@@ -529,7 +529,7 @@ static bool s_load_qvm(const char* file) {
 	QMM_SYSCALL(G_FS_FCLOSE_FILE, fpk3);
 
 	// attempt to load mod
-	loaded = qvm_load(&gt_qvm, filemem, filelen, SOF2GT_qvm_syscall, true, nullptr);	// true = verify_data
+	loaded = qvm_load(&gt_qvm, filemem, filelen, SOF2GT_qvm_syscall, true, 0, nullptr);	// true = verify_data
 	if (!loaded) {
 		QMM_WRITEQMMLOG(QMMLOG_DEBUG, "s_load_qvm(\"%s\"): QVM load failed for gametype '%s'\n", file, gt_pluginvars.gt_gametype);
 		goto fail;

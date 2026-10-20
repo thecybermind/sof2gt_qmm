@@ -105,6 +105,34 @@ C_DLLEXPORT intptr_t QMM_vmMain(result_vars* results, intptr_t cmd, intptr_t* ar
 			QMM_WRITEQMMLOG(QMMLOG_INFO, "%d SoF2GT plugin(s) found!\n", s_plugins.size());
 		}
 	}
+	else if (cmd == GAME_CONSOLE_COMMAND && !g_disabled) {
+		const char* arg_cmd = QMM_ARGV2(0);
+		if (strcmp(arg_cmd, "gtqmm") == 0 || strcmp(arg_cmd, "/gtqmm") == 0) {
+			const char* arg1 = QMM_ARGV2(1);
+			if (strcmp(arg1, "status") == 0 || strcmp(arg1, "info") == 0) {
+				QMM_SYSCALL(G_PRINT, "(GTQMM) SOF2GT_QMM v" SOF2GT_QMM_VERSION " [" SOF2GT_QMM_OS " " SOF2GT_QMM_ARCH "]\n");
+				QMM_SYSCALL(G_PRINT, "(GTQMM) Built      : " SOF2GT_QMM_COMPILE " by " SOF2GT_QMM_BUILDER "\n");
+				QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) Plugins    : %d\n", s_plugins.size()));
+				QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) Loaded GT  : %s\n", gt_pluginvars.gt_gametype));
+				if (gt_qvm.memory) {
+					QMM_SYSCALL(G_PRINT, "(GTQMM)\n");
+					QMM_SYSCALL(G_PRINT, "(GTQMM) QVM GT file information\n");
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM magic number   : %X (%s)\n", gt_qvm.magic, gt_qvm.magic == QVM_MAGIC ? "QVM_MAGIC" : "QVM_MAGIC_VER2"));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM file size      : %z\n", gt_qvm.filesize));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM memory base    : %p\n", gt_qvm.memory));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM memory size    : %z\n", gt_qvm.memorysize));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM instr count    : %z\n", gt_qvm.instructioncount));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM codeseg size   : %z\n", gt_qvm.codeseglen));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM dataseg size   : %z\n", gt_qvm.dataseglen));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM stack size     : %z\n", gt_qvm.stacksize));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM hunk size      : %z\n", gt_qvm.hunksize));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM hunk usage     : %d\n", gt_qvm.hunkhigh - gt_qvm.hunkptr));
+					QMM_SYSCALL(G_PRINT, QMM_VARARGS("(GTQMM) QVM data validation: %s\n", gt_qvm.verify_data ? "on" : "off"));
+				}
+			}
+			QMM_RET_SUPERCEDE(1);
+		}
+	}
 	else if (cmd == GAME_SHUTDOWN) {
 		if (gt_dll)
 			dlclose(gt_dll);
